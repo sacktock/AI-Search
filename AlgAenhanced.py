@@ -225,7 +225,7 @@ class Node(object):
     def f(self):
         return self.h() + self.g()
     
-    # heuristic fucntion
+    # heuristic function
     def h(self):
         if self.isGoalNode():
             return 0
@@ -234,10 +234,20 @@ class Node(object):
                     
             j = self.state[-1]
             Z = distance_matrix[j][unvisited[0]]
+            M2 = distance_matrix[0][unvisited[1]]
+            M1 = distance_matrix[0][unvisited[0]]
             for i in range(1, len(unvisited)):
                 if distance_matrix[j][i] < Z:
                     Z = distance_matrix[j][i]
-            return Z
+                    if distance_matrix[0][i] < M1:
+                        M1 = distance_matrix[0][i]
+                elif distance_matrix[0][i] < M2:
+                    M2 = distance_matrix[0][i]
+
+            if Z == M1:
+                return Z + M2
+            else:
+                return Z + min(M1,M2)
 
     def g(self):
         return self.path_cost
