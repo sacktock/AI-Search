@@ -3,6 +3,7 @@ import sys
 import time
 import random
 import copy
+import heapq
 
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
@@ -219,11 +220,21 @@ class Node(object):
     def __init__(self, state, path_cost):
         self.state = state
         self.path_cost = path_cost
-        self.unvisited = list(range(0, num_cities))
+        self.unvisited = list(set(range(0, num_cities)) - set(state))
+        self.heuristic = self.h()
 
+    def __lt__(self, other):
+        return self.f() < other.f()
+
+    def __gt__(self,other):
+        return self.f() > other.f()
+    
+    def __eq__(self,other):
+        return self.f() == other.f()
+    
     # f function
     def f(self):
-        return self.h() + self.g()
+        return self.heuristic + self.g()
     
     # heuristic fucntion
     def h(self):
@@ -247,7 +258,7 @@ class Node(object):
         
         
         
-class PriorityQueue(object):
+'''class PriorityQueue(object):
     def __init__(self):
         self.queue = []
 
@@ -257,21 +268,78 @@ class PriorityQueue(object):
     def isEmpty(self):
         return len(self.queue) == 0
 
+    def decrease_val(self,i):
+
+        while i > 1 and self.queue[i//2].f()>self.queue[i].f():
+            temp = copy.deepcopy(self.queue[i//2])
+            self.queue[i//2]=copy.deepcopy(self.queue[i])
+            self.queue[i]=copy.deepcopy(temp)
+            i = i//2
+        
+        
     def push(self, obj):
         self.queue.append(obj)
+        self.decrease_val(len(self.queue)-1)
         
+    def min_heapify(self, i, N):
+        left = 2*i
+        right =2*i+1
+        smallest = i
+        if (left <= N):
+            if (self.queue[left].f()<self.queue[i].f()):
+                smallest =left
+        else:
+            smallest =i
+        if (right <=N):
+            if (self.queue[right].f()<self.queue[smallest].f()):
+                smallest = right
+        if (smallest != i):
+            temp = copy.deepcopy(self.queue[i])
+            self.queue[i] = copy.deepcopy(self.queue[smallest])
+            self.queue[smallest] = copy.deepcopy(temp)
+            self.min_heapify(smallest,N)
+        return
+        
+
+    def build_min_heap(self):
+        for i in range(len(self.queue)//2, 0, -1):
+            self.min_heapify(i,len(self.queue)-1)
+            
+        
+    def pop(self):
+        # extract minimum
+        if (not self.isEmpty()):
+            item = copy.deepcopy(self.queue.pop(0))
+            self.build_min_heap()
+            return item
+        else:
+            return None'''
+        
+class PriorityQueue(object):
+    def __init__(self):
+        self.Q = []
+
+    def __str__(self):
+        return "".join([str(i) for i in self.Q])
+
+    def isEmpty(self):
+        return len(self.Q) == 0
+
+    def push(self, obj):
+        self.Q.append(obj)
+    
     def pop(self):
         if (not self.isEmpty()):
             j = 0
-            for i in range(1,len(self.queue)):
-                if self.queue[i].f() > self.queue[j].f():
+            for i in range(1,len(self.Q)):
+                if self.Q[i] > self.Q[j]:
                     j = i
-            item = copy.deepcopy(self.queue[j])
-            del self.queue[j]
+            item = copy.deepcopy(self.Q[j])
+            del self.Q[j]
             return item
         else:
             return None
-    
+        
 def AStarSearch():
     # init the start node
 
@@ -293,8 +361,7 @@ def AStarSearch():
                 return node
 
             # create a set of unvisited nodes for this node
-            unvisited = node.unvisited
-    
+            unvisited = copy.deepcopy(node.unvisited)
             # iterate through all possible children
             for i in unvisited:
                 # get the cost of traversing to node i from our last node
@@ -305,7 +372,6 @@ def AStarSearch():
                     newState.append(i)
                     # init the child node
                     child = Node(newState, node.path_cost + weight)
-                    child.unvisited.remove(i)
                     if child.isGoalNode():
                         child.path_cost += distance_matrix[node.state[0]][i]
                     fringe.push(child)
