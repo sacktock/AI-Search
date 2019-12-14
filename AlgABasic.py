@@ -221,7 +221,7 @@ class Node(object):
         self.state = state
         self.path_cost = path_cost
         self.unvisited = list(set(range(0, num_cities)) - set(state))
-        self.heuristic = self.h()
+        self.heuristic = None
 
     def __lt__(self, other):
         return self.f() < other.f()
@@ -234,86 +234,33 @@ class Node(object):
     
     # f function
     def f(self):
-        return self.heuristic + self.g()
+        return self.h() + self.g()
     
     # heuristic fucntion
     def h(self):
-        if self.isGoalNode():
-            return 0
+        if self.heuristic == None:
+            if self.isGoalNode():
+                self.heuristic = 0
+                return 0
+            else:
+                unvisited = self.unvisited
+                        
+                j = self.state[-1]
+                Z = distance_matrix[j][unvisited[0]]
+                for i in range(0, len(unvisited)):
+                    if distance_matrix[j][i] < Z:
+                        Z = distance_matrix[j][i]
+                self.heuristic = Z
+                return Z
         else:
-            unvisited = self.unvisited
-                    
-            j = self.state[-1]
-            Z = distance_matrix[j][unvisited[0]]
-            for i in range(1, len(unvisited)):
-                if distance_matrix[j][i] < Z:
-                    Z = distance_matrix[j][i]
-            return Z
+            return self.heuristic
+        
 
     def g(self):
         return self.path_cost
 
     def isGoalNode(self):
         return len(self.state) == num_cities
-        
-        
-        
-'''class PriorityQueue(object):
-    def __init__(self):
-        self.queue = []
-
-    def __str__(self):
-        return "".join([str(i) for i in self.queue])
-
-    def isEmpty(self):
-        return len(self.queue) == 0
-
-    def decrease_val(self,i):
-
-        while i > 1 and self.queue[i//2].f()>self.queue[i].f():
-            temp = copy.deepcopy(self.queue[i//2])
-            self.queue[i//2]=copy.deepcopy(self.queue[i])
-            self.queue[i]=copy.deepcopy(temp)
-            i = i//2
-        
-        
-    def push(self, obj):
-        self.queue.append(obj)
-        self.decrease_val(len(self.queue)-1)
-        
-    def min_heapify(self, i, N):
-        left = 2*i
-        right =2*i+1
-        smallest = i
-        if (left <= N):
-            if (self.queue[left].f()<self.queue[i].f()):
-                smallest =left
-        else:
-            smallest =i
-        if (right <=N):
-            if (self.queue[right].f()<self.queue[smallest].f()):
-                smallest = right
-        if (smallest != i):
-            temp = copy.deepcopy(self.queue[i])
-            self.queue[i] = copy.deepcopy(self.queue[smallest])
-            self.queue[smallest] = copy.deepcopy(temp)
-            self.min_heapify(smallest,N)
-        return
-        
-
-    def build_min_heap(self):
-        for i in range(len(self.queue)//2, 0, -1):
-            self.min_heapify(i,len(self.queue)-1)
-            
-        
-    def pop(self):
-        # extract minimum
-        if (not self.isEmpty()):
-            item = copy.deepcopy(self.queue.pop(0))
-            self.build_min_heap()
-            return item
-        else:
-            return None'''
         
 class PriorityQueue(object):
     def __init__(self):
@@ -344,7 +291,7 @@ def AStarSearch():
     # init the start node
 
     # (state = list of visited nodes, path_cost = cost of path)
-    startNode = Node([0],0)
+    startNode = Node([],0)
 
     # init the fringe priority queue
     fringe = PriorityQueue()
@@ -365,9 +312,13 @@ def AStarSearch():
             # iterate through all possible children
             for i in unvisited:
                 # get the cost of traversing to node i from our last node
-                weight = distance_matrix[node.state[-1]][i]
+                weight = 0
+                try:
+                    weight = distance_matrix[node.state[-1]][i]
+                except IndexError:
+                    weight = 0
                 
-                if weight > 0:
+                if weight > 0 or node.state == []:
                     newState = copy.deepcopy(node.state)
                     newState.append(i)
                     # init the child node

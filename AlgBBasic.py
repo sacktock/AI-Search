@@ -2,8 +2,6 @@ import os
 import sys
 import time
 import random
-import copy
-import heapq
 
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
@@ -164,15 +162,15 @@ else:
 ############ YOU NEED TO INCLUDE THE FOLLOWING PARAMETERS:                                 ############
 ############ "my_user_name" = your user-name, e.g., mine is dcs0ias                        ############
 
-my_user_name = "clvp22"
+my_user_name = "dcs0ias"
 
 ############ "my_first_name" = your first name, e.g., mine is Iain                         ############
 
-my_first_name = "Alex"
+my_first_name = "Iain"
 
 ############ "my_last_name" = your last name, e.g., mine is Stewart                        ############
 
-my_last_name = "Goodall"
+my_last_name = "Stewart"
 
 ############ "alg_code" = the two-digit code that tells me which algorithm you have        ############
 ############ implemented (see the assignment pdf), where the codes are:                    ############
@@ -186,13 +184,13 @@ my_last_name = "Goodall"
 ############    SA = simulated annealing search                                            ############
 ############    GA = genetic algorithm                                                     ############
 
-alg_code = "AS"
+alg_code = "BG"
 
 ############ you can also add a note that will be added to the end of the output file if   ############
 ############ you like, e.g., "in my basic greedy search, I broke ties by always visiting   ############
 ############ the first nearest city found" or leave it empty if you wish                   ############
 
-added_note = "Basic heuristic that takes into account path cost and nearest neighbour"
+added_note = ""
 
 ############ the line below sets up a dictionary of codes and search names (you need do    ############
 ############ nothing unless you implement an alternative algorithm and I give you a code   ############
@@ -212,132 +210,15 @@ codes_and_names = {'BF' : 'brute-force search',
 ############    now the code for your algorithm should begin                               ############
 #######################################################################################################
 
-# distance_matrix is the identifier of the 2-dim matrix
-# num_cities is the number of cities
-
-class Node(object):
-    
-    def __init__(self, state, path_cost):
-        self.state = state
-        self.path_cost = path_cost
-        self.unvisited = list(set(range(0, num_cities)) - set(state))
-        self.heuristic = None
-
-    def __lt__(self, other):
-        return self.f() < other.f()
-
-    def __gt__(self,other):
-        return self.f() > other.f()
-    
-    def __eq__(self,other):
-        return self.f() == other.f()
-    
-    # f function
-    def f(self):
-        return self.h() + self.g()
-    
-    # heuristic fucntion
-    def h(self):
-        if self.heuristic == None:
-            if self.isGoalNode():
-                self.heuristic = 0
-                return 0
-            else:
-                unvisited = self.unvisited         
-                j = self.state[-1]
-                Z = distance_matrix[j][unvisited[0]]
-                for i in range(0, len(unvisited)):
-                    if distance_matrix[j][i] < Z:
-                        Z = distance_matrix[j][i]
-                self.heuristic = Z
-                return Z
-        else:
-            return self.heuristic
-
-    def g(self):
-        return self.path_cost
-
-    def isGoalNode(self):
-        return len(self.state) == num_cities
         
-class PriorityQueue(object):
-    def __init__(self):
-        self.Q = []
 
-    def __str__(self):
-        return "".join([str(i) for i in self.Q])
 
-    def isEmpty(self):
-        return len(self.Q) == 0
 
-    def push(self, obj):
-        self.Q.append(obj)
-    
-    def pop(self):
-        if (not self.isEmpty()):
-            j = 0
-            for i in range(1,len(self.Q)):
-                if self.Q[i] > self.Q[j]:
-                    j = i
-            item = copy.deepcopy(self.Q[j])
-            del self.Q[j]
-            return item
-        else:
-            return None
-        
-def AStarSearch():
-    # init the start node
 
-    # (state = list of visited nodes, path_cost = cost of path)
-    startNode = Node([],0)
 
-    # init the fringe priority queue
-    fringe = PriorityQueue()
-    # is the start node a goal node? - not likely
-    if startNode.isGoalNode():
-        return startNode
-    else:
-        fringe.push(startNode)
-        # while fringe is not empty
-        while not fringe.isEmpty():
-            # pop the next node
-            node = copy.deepcopy(fringe.pop())
-            if node.isGoalNode():
-                return node
 
-            # create a set of unvisited nodes for this node
-            unvisited = copy.deepcopy(node.unvisited)
-            # iterate through all possible children
-            for i in unvisited:
-                # get the cost of traversing to node i from our last node
-                weight = 0
-                try:
-                    weight = distance_matrix[node.state[-1]][i]
-                except IndexError:
-                    weight = 0
-                
-                if weight > 0 or node.state == []:
-                    newState = copy.deepcopy(node.state)
-                    newState.append(i)
-                    # init the child node
-                    child = Node(newState, node.path_cost + weight)
-                    if child.isGoalNode():
-                        child.path_cost += distance_matrix[node.state[0]][i]
-                    fringe.push(child)
 
-    # no goal node is found return -1
-    return None
-                
-# set of all cities
- 
-solution = AStarSearch()
 
-if solution is not None:
-    tour = solution.state
-    tour_length = solution.path_cost
-else:
-    tour = ''
-    tour_length = -1
 
 
 #######################################################################################################
