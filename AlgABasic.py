@@ -113,7 +113,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile175.txt"
+input_file = "AISearchfile012.txt"
 
 #######################################################################################################
 
@@ -217,20 +217,20 @@ codes_and_names = {'BF' : 'brute-force search',
 
 class Node(object):
     
-    def __init__(self, state, path_cost):
+    def __init__(self, state, path_cost, unvisited):
         self.state = state
         self.path_cost = path_cost
-        self.unvisited = list(set(range(0, num_cities)) - set(state))
+        self.unvisited = unvisited #list(set(range(0, num_cities)) - set(state))
         self.heuristic = None
 
     def __lt__(self, other):
-        return self.f() < other.f()
+        return self.f() < other.f() 
 
     def __gt__(self,other):
-        return self.f() > other.f()
+        return self.f() > other.f() 
     
     def __eq__(self,other):
-        return self.f() == other.f()
+        return self.f()  == other.f() 
     
     # f function
     def f(self):
@@ -242,14 +242,19 @@ class Node(object):
             if self.isGoalNode():
                 self.heuristic = 0
                 return 0
+            elif self.state == []:
+                self.heuristic = 0
+                return 0   
             else:
                 unvisited = self.unvisited
                         
                 j = self.state[-1]
                 Z = distance_matrix[j][unvisited[0]]
+                
                 for i in range(0, len(unvisited)):
-                    if distance_matrix[j][i] < Z:
-                        Z = distance_matrix[j][i]
+                    if distance_matrix[j][unvisited[i]] < Z:
+                        Z = distance_matrix[j][unvisited[i]]
+                
                 self.heuristic = Z
                 return Z
         else:
@@ -279,19 +284,21 @@ class PriorityQueue(object):
         if (not self.isEmpty()):
             j = 0
             for i in range(1,len(self.Q)):
-                if self.Q[i] > self.Q[j]:
+                if self.Q[i] < self.Q[j]:
                     j = i
             item = copy.deepcopy(self.Q[j])
             del self.Q[j]
             return item
         else:
             return None
-        
+
+
 def AStarSearch():
+    print(distance_matrix)
     # init the start node
 
     # (state = list of visited nodes, path_cost = cost of path)
-    startNode = Node([],0)
+    startNode = Node([],0, list(range(0,num_cities)))
 
     # init the fringe priority queue
     fringe = PriorityQueue()
@@ -308,7 +315,7 @@ def AStarSearch():
                 return node
 
             # create a set of unvisited nodes for this node
-            unvisited = copy.deepcopy(node.unvisited)
+            unvisited = copy.copy(node.unvisited)
             # iterate through all possible children
             for i in unvisited:
                 # get the cost of traversing to node i from our last node
@@ -319,10 +326,12 @@ def AStarSearch():
                     weight = 0
                 
                 if weight > 0 or node.state == []:
-                    newState = copy.deepcopy(node.state)
+                    newState = copy.copy(node.state)
                     newState.append(i)
+                    newUnvisited = copy.copy(unvisited)
+                    newUnvisited.remove(i)
                     # init the child node
-                    child = Node(newState, node.path_cost + weight)
+                    child = Node(newState, node.path_cost + weight, newUnvisited)
                     if child.isGoalNode():
                         child.path_cost += distance_matrix[node.state[0]][i]
                     fringe.push(child)

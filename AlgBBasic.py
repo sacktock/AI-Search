@@ -162,15 +162,15 @@ else:
 ############ YOU NEED TO INCLUDE THE FOLLOWING PARAMETERS:                                 ############
 ############ "my_user_name" = your user-name, e.g., mine is dcs0ias                        ############
 
-my_user_name = "dcs0ias"
+my_user_name = "clvp22"
 
 ############ "my_first_name" = your first name, e.g., mine is Iain                         ############
 
-my_first_name = "Iain"
+my_first_name = "Alex"
 
 ############ "my_last_name" = your last name, e.g., mine is Stewart                        ############
 
-my_last_name = "Stewart"
+my_last_name = "Goodall"
 
 ############ "alg_code" = the two-digit code that tells me which algorithm you have        ############
 ############ implemented (see the assignment pdf), where the codes are:                    ############
@@ -184,7 +184,7 @@ my_last_name = "Stewart"
 ############    SA = simulated annealing search                                            ############
 ############    GA = genetic algorithm                                                     ############
 
-alg_code = "BG"
+alg_code = "GA"
 
 ############ you can also add a note that will be added to the end of the output file if   ############
 ############ you like, e.g., "in my basic greedy search, I broke ties by always visiting   ############
@@ -210,17 +210,136 @@ codes_and_names = {'BF' : 'brute-force search',
 ############    now the code for your algorithm should begin                               ############
 #######################################################################################################
 
+class Individual(object):
+    def __init__(self, encoding):
+        # encoding is a string of bar seperated numbers that represent cities
+        self.encoding = encoding
+
+    def __lt__(self, other):
+        return self.f() < other.f()
+
+    def __gt__(self,other):
+        return self.f() > other.f()
+    
+    def __eq__(self,other):
+        return self.f() == other.f()
+
+    def f(self):
+        tour = self.list()
+        if tour:
+            tour_length = 0
+            for i in range(0, num_cities-1):
+                tour_length += distance_matrix[tour[i]][tour[i+1]]
+            tour_length += distance_matrix[tour[num_cities-1]][tour[0]]
+            return tour_length
+        else:
+            return -1
+        # return fitness value of individual
+
+    def list(self):
+        try:
+            return list(map(int, self.encoding.split('|')))
+        except:
+            return None
+        # return encoding as a list
+
+class Generation(object):
+    def __init__(self, number, population):
+        self.number = number
+        self.population = population
+        self.N = 100
+
+    def new(self):
+        for i in range(0, self.N):
+            cities = list(range(0, num_cities))
+            random.shuffle(cities)
+            encoding = ''
+            while cities != []:
+                encoding += str(cities.pop())
+                encoding += '|'
+                
+            encoding = encoding[:-1]
+            self.population.append(Individual(encoding))
+            # append randomly generated individuals to the population
+
+    def next(self):
+        # create probability distribution
+        cumulative=[]
+        cum = 0
+        for individual in self.population:
+            cum += individual.f()
+            cumulative.append(cum)
+            
+        self.number += 1
+        new_population = []
         
+        # create a new generation from an old one
+        # randomly select 2 individuals from the population
+        for _ in range(self.N):
+            lst = random.choices(self.population, cum_weights=cumulative, k=2)
+            parentX = lst[0]
+            parentY = lst[1]
+            child = reproduce(parentX, parentY)
+            new_population.append(child)
+        self.population = new_population
+        # fitter ones are more likely to get picked
+        # reproduce a child
+        
+        # repeat this i times until we have a new population of i children
+        
+    def get_best(self):
+        # return the fittest individual in the population
+        best = self.population[0]
+        for i in range(1,self.N):
+            if best < self.population[i]:
+                best = self.population[i]
+                
+        return best
+            
+def reproduce(X, Y):
+    # create an offspring from 2 parents
+    # splice parents encoding and concatenate them
+    # randomly mutate the child encoding
+    # single point crossover
+    crossover = random.randint(0, num_cities-1)
+    lstX = X.list()
+    lstY = Y.list()
+    lst = lstX[:crossover] + lstY[crossover:]
+    diff = list(set(lstX)-set(lst))
+    for i in range(crossover, len(lst)):
+        if lst[i] in lstX[:crossover]:
+            lst[i] = diff.pop()
+            
+    mut_index = random.randint(0, num_cities-1)
+    temp = lst[mut_index]
+    lst[mut_index] = lst[(mut_index + 1)%(num_cities-1)]
+    lst[(mut_index + 1)%(num_cities-1)] = temp
+    encoding = ''
+    while lst != []:
+        encoding += str(lst.pop(0))
+        encoding += '|'
+    encoding = encoding[:-1]
+    return Individual(encoding)
+         
+def search():
+    # create a randomly generated population
+    population = Generation(1, [])
+    population.new()
+    # create a new generation from the old one n times
+    N = 10
+    for i in range(0, N):
+        population.next()
+    # select the best individual from the newest generation to be the answer
+    return population.get_best()
 
+solution = search()
 
-
-
-
-
-
-
-
-
+if solution is not None:
+    tour = solution.list()
+    tour_length = solution.f()
+else:
+    tour = ''
+    tour_length = -1
 #######################################################################################################
 ############ the code for your algorithm should now be complete and you should have        ############
 ############ computed a tour held in the list "tour" of length "tour_length"               ############
