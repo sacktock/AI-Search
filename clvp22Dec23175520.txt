@@ -1,5 +1,0 @@
-USER = clvp22 (Alex Goodall)
-ALGORITHM = AS, FILENAME = AISearchfile005
-NUMBER OF CITIES = 5, TOUR LENGTH = 5
-0,1,2,3,4
-NOTE = Basic heuristic that takes into account path cost and nearest neighbour

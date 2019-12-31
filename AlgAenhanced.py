@@ -217,20 +217,21 @@ codes_and_names = {'BF' : 'brute-force search',
 
 class Node(object):
     
-    def __init__(self, state, path_cost):
-        self.state = state
-        self.path_cost = path_cost
-        self.unvisited = list(set(range(0, num_cities)) - set(state))
-        self.heuristic = None
+    def __init__(self, state, path_cost, unvisited):
+        self.state = state # list of visited cities
+        self.path_cost = path_cost # path cost of visited cities
+        self.unvisited = unvisited  # list of unvisited cities
+        self.heuristic = None # heurisitic value of state
 
+    # define comaprison between objects
     def __lt__(self, other):
-        return self.f() < other.f()
+        return self.f() < other.f() 
 
     def __gt__(self,other):
-        return self.f() > other.f()
+        return self.f() > other.f() 
     
     def __eq__(self,other):
-        return self.f() == other.f()
+        return self.f()  == other.f() 
     
     # f function
     def f(self):
@@ -242,18 +243,39 @@ class Node(object):
             if self.isGoalNode():
                 self.heuristic = 0
                 return 0
+            elif self.state == []:
+                self.heuristic = 0
+                return 0   
             else:
-                unvisited = self.unvisited         
+                # compute the heuristic if it has not been computed before 
+                unvisited = copy.copy(self.unvisited)
+                        
                 j = self.state[-1]
-                Z = distance_matrix[j][unvisited[0]]
-                for i in range(0, len(unvisited)):
-                    if distance_matrix[j][i] < Z:
-                        Z = distance_matrix[j][i]
-                self.heuristic = Z
-                return Z
+
+                G = 0
+                # create an improved heuristic
+                # the distance of a partial completion through k unvisited cities
+                # determine k
+                # do a greedy completion on k unvisited cities
+                # try adding k cities at each new child node
+                '''while unvisited != []:
+                    k = j
+                    Z = distance_matrix[j][unvisited[0]]
+                    j = unvisited[0]
+                    for i in range(1, len(unvisited)):
+                        if distance_matrix[k][unvisited[i]] < Z:
+                            Z = distance_matrix[k][unvisited[i]]
+                            j = unvisited[i]
+                    unvisited.remove(j)
+                    G += Z
+                    
+                G += distance_matrix[j][self.state[0]]    
+                self.heuristic = G'''
+                return G
         else:
             return self.heuristic
-
+        
+    # g function
     def g(self):
         return self.path_cost
 
@@ -261,6 +283,7 @@ class Node(object):
         return len(self.state) == num_cities
         
 class PriorityQueue(object):
+    # priority queue class
     def __init__(self):
         self.Q = []
 
@@ -277,19 +300,20 @@ class PriorityQueue(object):
         if (not self.isEmpty()):
             j = 0
             for i in range(1,len(self.Q)):
-                if self.Q[i] > self.Q[j]:
+                if self.Q[i] < self.Q[j]:
                     j = i
             item = copy.deepcopy(self.Q[j])
             del self.Q[j]
             return item
         else:
             return None
-        
+
+
 def AStarSearch():
     # init the start node
 
     # (state = list of visited nodes, path_cost = cost of path)
-    startNode = Node([],0)
+    startNode = Node([],0, list(range(0,num_cities)))
 
     # init the fringe priority queue
     fringe = PriorityQueue()
@@ -306,7 +330,7 @@ def AStarSearch():
                 return node
 
             # create a set of unvisited nodes for this node
-            unvisited = copy.deepcopy(node.unvisited)
+            unvisited = copy.copy(node.unvisited)
             # iterate through all possible children
             for i in unvisited:
                 # get the cost of traversing to node i from our last node
@@ -317,15 +341,18 @@ def AStarSearch():
                     weight = 0
                 
                 if weight > 0 or node.state == []:
-                    newState = copy.deepcopy(node.state)
+                    newState = copy.copy(node.state)
                     newState.append(i)
-                    # init the child node
-                    child = Node(newState, node.path_cost + weight)
+                    newUnvisited = copy.copy(unvisited)
+                    newUnvisited.remove(i)
+                    # init the new child node
+                    child = Node(newState, node.path_cost + weight, newUnvisited)
                     if child.isGoalNode():
                         child.path_cost += distance_matrix[node.state[0]][i]
+                    # push the child node
                     fringe.push(child)
 
-    # no goal node is found return -1
+    # no goal node is found return None
     return None
                 
 # set of all cities

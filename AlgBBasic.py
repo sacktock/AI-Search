@@ -215,6 +215,7 @@ class Individual(object):
         # encoding is a string of bar seperated numbers that represent cities
         self.encoding = encoding
 
+    # define how to compare individuals
     def __lt__(self, other):
         return self.f() < other.f()
 
@@ -224,6 +225,7 @@ class Individual(object):
     def __eq__(self,other):
         return self.f() == other.f()
 
+    # fitness function - the value of of the tour encoded by the individual
     def f(self):
         tour = self.list()
         if tour:
@@ -245,11 +247,12 @@ class Individual(object):
 
 class Generation(object):
     def __init__(self, number, population):
-        self.number = number
-        self.population = population
-        self.N = 100
+        self.number = number # the number of the generation 
+        self.population = population # population as a list of objects
+        self.N = 100 # number of individuals in the population
 
     def new(self):
+        self.number = 1
         for i in range(0, self.N):
             cities = list(range(0, num_cities))
             random.shuffle(cities)
@@ -263,29 +266,33 @@ class Generation(object):
             # append randomly generated individuals to the population
 
     def next(self):
-        # create probability distribution
-        cumulative=[]
-        cum = 0
+        # create a new generation from an old one
+        # create the probability distribution
+        maximum = self.population[0].f()
+        for i in range(1, self.N):
+            if maximum < self.population[i].f():
+                maximum = self.population[i].f()
+            
+        weight=[]
+        # fix the weight so fittest get chosen
         for individual in self.population:
-            cum += individual.f()
-            cumulative.append(cum)
+            weight.append(maximum - individual.f())
             
         self.number += 1
         new_population = []
         
-        # create a new generation from an old one
-        # randomly select 2 individuals from the population
+        # repeat this N times until we have a new population of N children
         for _ in range(self.N):
-            lst = random.choices(self.population, cum_weights=cumulative, k=2)
+            # randomly select 2 individuals from the population
+            # fitter ones are more likely to get picked
+            lst = random.choices(self.population, weights=weight, k=2)
             parentX = lst[0]
             parentY = lst[1]
+            # reproduce a child
             child = reproduce(parentX, parentY)
             new_population.append(child)
+        # set the new population
         self.population = new_population
-        # fitter ones are more likely to get picked
-        # reproduce a child
-        
-        # repeat this i times until we have a new population of i children
         
     def get_best(self):
         # return the fittest individual in the population
@@ -299,34 +306,38 @@ class Generation(object):
 def reproduce(X, Y):
     # create an offspring from 2 parents
     # splice parents encoding and concatenate them
-    # randomly mutate the child encoding
     # single point crossover
     crossover = random.randint(0, num_cities-1)
     lstX = X.list()
     lstY = Y.list()
     lst = lstX[:crossover] + lstY[crossover:]
+    # deal with duplicated cities 
     diff = list(set(lstX)-set(lst))
     for i in range(crossover, len(lst)):
         if lst[i] in lstX[:crossover]:
             lst[i] = diff.pop()
             
+    # randomly mutate the child encoding
+    # pick a random city and swap it with its right neighbour
     mut_index = random.randint(0, num_cities-1)
     temp = lst[mut_index]
     lst[mut_index] = lst[(mut_index + 1)%(num_cities-1)]
     lst[(mut_index + 1)%(num_cities-1)] = temp
+    # create the encoding 
     encoding = ''
     while lst != []:
         encoding += str(lst.pop(0))
         encoding += '|'
     encoding = encoding[:-1]
+    # return the new individual
     return Individual(encoding)
          
 def search():
     # create a randomly generated population
     population = Generation(1, [])
     population.new()
-    # create a new generation from the old one n times
-    N = 10
+    # evolve the population N times
+    N = 100
     for i in range(0, N):
         population.next()
     # select the best individual from the newest generation to be the answer

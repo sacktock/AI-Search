@@ -113,7 +113,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile012.txt"
+input_file = "AISearchfile175.txt"
 
 #######################################################################################################
 
@@ -218,11 +218,12 @@ codes_and_names = {'BF' : 'brute-force search',
 class Node(object):
     
     def __init__(self, state, path_cost, unvisited):
-        self.state = state
-        self.path_cost = path_cost
-        self.unvisited = unvisited #list(set(range(0, num_cities)) - set(state))
-        self.heuristic = None
+        self.state = state # list of visited cities
+        self.path_cost = path_cost # path cost of visited cities
+        self.unvisited = unvisited  # list of unvisited cities
+        self.heuristic = None # heurisitic value of state
 
+    # define comaprison between objects
     def __lt__(self, other):
         return self.f() < other.f() 
 
@@ -246,21 +247,31 @@ class Node(object):
                 self.heuristic = 0
                 return 0   
             else:
-                unvisited = self.unvisited
+                # compute the heuristic if it has not been computed before 
+                unvisited = copy.copy(self.unvisited)
                         
                 j = self.state[-1]
-                Z = distance_matrix[j][unvisited[0]]
-                
-                for i in range(0, len(unvisited)):
-                    if distance_matrix[j][unvisited[i]] < Z:
-                        Z = distance_matrix[j][unvisited[i]]
-                
-                self.heuristic = Z
-                return Z
+
+                G = 0
+                # distance of the greedy completion (from the current end-city)
+                while unvisited != []:
+                    k = j
+                    Z = distance_matrix[j][unvisited[0]]
+                    j = unvisited[0]
+                    for i in range(1, len(unvisited)):
+                        if distance_matrix[k][unvisited[i]] < Z:
+                            Z = distance_matrix[k][unvisited[i]]
+                            j = unvisited[i]
+                    unvisited.remove(j)
+                    G += Z
+                    
+                G += distance_matrix[j][self.state[0]]    
+                self.heuristic = G
+                return G
         else:
             return self.heuristic
         
-
+    # g function
     def g(self):
         return self.path_cost
 
@@ -268,6 +279,7 @@ class Node(object):
         return len(self.state) == num_cities
         
 class PriorityQueue(object):
+    # priority queue class
     def __init__(self):
         self.Q = []
 
@@ -294,7 +306,6 @@ class PriorityQueue(object):
 
 
 def AStarSearch():
-    print(distance_matrix)
     # init the start node
 
     # (state = list of visited nodes, path_cost = cost of path)
@@ -330,13 +341,14 @@ def AStarSearch():
                     newState.append(i)
                     newUnvisited = copy.copy(unvisited)
                     newUnvisited.remove(i)
-                    # init the child node
+                    # init the new child node
                     child = Node(newState, node.path_cost + weight, newUnvisited)
                     if child.isGoalNode():
                         child.path_cost += distance_matrix[node.state[0]][i]
+                    # push the child node
                     fringe.push(child)
 
-    # no goal node is found return -1
+    # no goal node is found return None
     return None
                 
 # set of all cities
