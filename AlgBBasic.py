@@ -3,6 +3,8 @@ import sys
 import time
 import random
 
+start_time = time.time()
+
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
     # characters with ord < "from_ord" and ord > "to_ord" and return the concatenation
@@ -111,7 +113,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile175.txt"
+input_file = "AISearchfile042.txt"
 
 #######################################################################################################
 
@@ -212,8 +214,9 @@ codes_and_names = {'BF' : 'brute-force search',
 
 class Individual(object):
     def __init__(self, encoding):
-        # encoding is a string of bar seperated numbers that represent cities
+        # encoding is a tour of cities
         self.encoding = encoding
+        self.fitness = None
 
     # define how to compare individuals
     def __lt__(self, other):
@@ -227,23 +230,17 @@ class Individual(object):
 
     # fitness function - the value of of the tour encoded by the individual
     def f(self):
-        tour = self.list()
-        if tour:
+        if self.fitness == None:
+            tour = self.encoding
             tour_length = 0
             for i in range(0, num_cities-1):
                 tour_length += distance_matrix[tour[i]][tour[i+1]]
             tour_length += distance_matrix[tour[num_cities-1]][tour[0]]
+            self.fitness = tour_length
             return tour_length
         else:
-            return -1
+            return self.fitness
         # return fitness value of individual
-
-    def list(self):
-        try:
-            return list(map(int, self.encoding.split('|')))
-        except:
-            return None
-        # return encoding as a list
 
 class Generation(object):
     def __init__(self, number, population):
@@ -254,15 +251,9 @@ class Generation(object):
     def new(self):
         self.number = 1
         for i in range(0, self.N):
-            cities = list(range(0, num_cities))
-            random.shuffle(cities)
-            encoding = ''
-            while cities != []:
-                encoding += str(cities.pop())
-                encoding += '|'
-                
-            encoding = encoding[:-1]
-            self.population.append(Individual(encoding))
+            lst = list(range(0, num_cities))
+            random.shuffle(lst)
+            self.population.append(Individual(lst))
             # append randomly generated individuals to the population
 
     def next(self):
@@ -296,20 +287,15 @@ class Generation(object):
         
     def get_best(self):
         # return the fittest individual in the population
-        best = self.population[0]
-        for i in range(1,self.N):
-            if best < self.population[i]:
-                best = self.population[i]
-                
-        return best
+        return max(self.population)
             
 def reproduce(X, Y):
     # create an offspring from 2 parents
     # splice parents encoding and concatenate them
     # single point crossover
     crossover = random.randint(0, num_cities-1)
-    lstX = X.list()
-    lstY = Y.list()
+    lstX = X.encoding
+    lstY = Y.encoding
     lst = lstX[:crossover] + lstY[crossover:]
     # deal with duplicated cities 
     diff = list(set(lstX)-set(lst))
@@ -324,13 +310,8 @@ def reproduce(X, Y):
     lst[mut_index] = lst[(mut_index + 1)%(num_cities-1)]
     lst[(mut_index + 1)%(num_cities-1)] = temp
     # create the encoding 
-    encoding = ''
-    while lst != []:
-        encoding += str(lst.pop(0))
-        encoding += '|'
-    encoding = encoding[:-1]
     # return the new individual
-    return Individual(encoding)
+    return Individual(lst)
          
 def search():
     # create a randomly generated population
@@ -346,7 +327,7 @@ def search():
 solution = search()
 
 if solution is not None:
-    tour = solution.list()
+    tour = solution.encoding
     tour_length = solution.f()
 else:
     tour = ''
@@ -373,7 +354,7 @@ if flag == "good":
     print("Great! Your tour-length of " + str(tour_length) + " from your " + codes_and_names[alg_code] + " is valid!")
 else:
     print("***** ERROR: Your claimed tour-length of " + str(tour_length) + "is different from the true tour length of " + str(check_tour_length) + ".")
-
+print("elapsed time: ",(time.time() - start_time))
 #######################################################################################################
 ############ start of code to write a valid tour to a text (.txt) file of the correct      ############
 ############ format; if your tour is not valid then you get an error message on the        ############

@@ -115,7 +115,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile535.txt"
+input_file = "AISearchfile048.txt"
 
 #######################################################################################################
 
@@ -224,22 +224,29 @@ class Node(object):
         self.path_cost = path_cost # path cost of visited cities
         self.unvisited = unvisited  # list of unvisited cities
         self.heuristic = None # heurisitic value of state
+        self.position = None
+        self.vertex = None
+        self.deltaZ = None
 
     # define comaprison between objects
     def __lt__(self, other):
+        if self.f() == other.f():
+            return len(self.state) > len(other.state)
         return self.f() < other.f() 
 
     def __gt__(self,other):
+        if self.f() == other.f():
+            return len(self.state) < len(other.state)
         return self.f() > other.f() 
     
     def __eq__(self,other):
-        return self.f()  == other.f() 
+        return self.f() == other.f() 
     
     # f function
     def f(self):
         return self.h() + self.g()
     
-    # heuristic fucntion
+    # heuristic function
     def h(self):
         if self.heuristic == None:
             if self.isGoalNode():
@@ -251,23 +258,41 @@ class Node(object):
             else:
                 # compute the heuristic if it has not been computed before 
                 unvisited = copy.copy(self.unvisited)
-                        
-                j = self.state[-1]
+                visited = copy.copy(self.state)
 
                 G = 0
-                # distance of the greedy completion (from the current end-city)
+                # create an improved heuristic
+                # nearest insertion completion heuristic
+                # choose the non tour city with the minimum distance to its nearest neighbour among the tour cities
                 while unvisited != []:
-                    k = j
-                    Z = distance_matrix[j][unvisited[0]]
-                    j = unvisited[0]
-                    for i in range(1, len(unvisited)):
-                        if distance_matrix[k][unvisited[i]] < Z:
-                            Z = distance_matrix[k][unvisited[i]]
-                            j = unvisited[i]
-                    unvisited.remove(j)
-                    G += Z
+                    V = unvisited[0]
+                    for k in unvisited:
+                        Z = distance_matrix[k][visited[0]]
+                        for i in range(1,len(visited)):
+                            if distance_matrix[k][visited[i]] < Z:
+                                Z = distance_matrix[k][visited[i]]
+                                V = k
                     
-                G += distance_matrix[j][self.state[0]]    
+                    Z = distance_matrix[V][visited[0]] + distance_matrix[V][visited[-1]] - distance_matrix[visited[0]][visited[-1]]
+                    P = 0
+                    
+                    for i in range(0, len(visited)-1):
+                        deltaZ = distance_matrix[visited[i]][V] + distance_matrix[V][visited[i+1]] - distance_matrix[visited[i]][visited[i+1]]
+                        if deltaZ < Z:
+                            Z = deltaZ
+                            P = i+1
+
+                    if self.position == None:
+                        self.position = P
+                        self.vertex = V
+                        self.deltaZ = Z
+                        
+                    G += Z
+                    visited.insert(P, V)
+                    unvisited.remove(V)
+
+                # Starting from a degenerate tour consisting of a triangle of three cities, repeatedly choose the non-tour city with the minimum distance to its nearest neighbor among the tour cities,
+                # and insert it in between the two consecutive tour cities for which such an insertion causes the minimum increase in total tour length.  
                 self.heuristic = G
                 return G
         else:
@@ -308,18 +333,25 @@ class PriorityQueue(object):
 
 
 def AStarSearch():
+    #print(distance_matrix)
     # init the start node
 
     # (state = list of visited nodes, path_cost = cost of path)
-    startNode = Node([],0, list(range(0,num_cities)))
-
-    # init the fringe priority queue
     fringe = PriorityQueue()
+    
+    startNode = Node([],0, list(range(0,num_cities)))
+    for i in range(0, num_cities):
+        for j in range(i+1, num_cities):
+            for k in range(j+1, num_cities):
+                path_cost = distance_matrix[i][j] + distance_matrix[j][k] + distance_matrix[i][k]
+                startNode = Node([i,j,k],path_cost, list(set(range(0,num_cities))- set([i,j,k])))
+                fringe.push(startNode)
+    # init the fringe priority queue
+    
     # is the start node a goal node? - not likely
     if startNode.isGoalNode():
         return startNode
     else:
-        fringe.push(startNode)
         # while fringe is not empty
         while not fringe.isEmpty():
             # pop the next node
@@ -327,27 +359,18 @@ def AStarSearch():
             if node.isGoalNode():
                 return node
             # create a set of unvisited nodes for this node
-            unvisited = copy.copy(node.unvisited)
             # iterate through all possible children
-            for i in unvisited:
-                # get the cost of traversing to node i from our last node
-                weight = 0
-                try:
-                    weight = distance_matrix[node.state[-1]][i]
-                except IndexError:
-                    weight = 0
-                
-                if weight > 0 or node.state == []:
-                    newState = copy.copy(node.state)
-                    newState.append(i)
-                    newUnvisited = copy.copy(unvisited)
-                    newUnvisited.remove(i)
-                    # init the new child node
-                    child = Node(newState, node.path_cost + weight, newUnvisited)
-                    if child.isGoalNode():
-                        child.path_cost += distance_matrix[node.state[0]][i]
-                    # push the child node
-                    fringe.push(child)
+                # get the cost of inserting node i into our partial tour
+
+            newState = copy.copy(node.state)
+            newState.insert(node.position, node.vertex)
+            newUnvisited = copy.copy(node.unvisited)
+            newUnvisited.remove(node.vertex)
+                        # init the new child node
+            child = Node(newState, node.path_cost + node.deltaZ, newUnvisited)
+                        # push the child node
+            fringe.push(child)
+                    #print('child:',child.state, child.f())
 
     # no goal node is found return None
     return None

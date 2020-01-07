@@ -5,6 +5,8 @@ import random
 import copy
 import heapq
 
+start_time = time.time()
+
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
     # characters with ord < "from_ord" and ord > "to_ord" and return the concatenation
@@ -113,7 +115,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile175.txt"
+input_file = "AISearchfile042.txt"
 
 #######################################################################################################
 
@@ -214,64 +216,63 @@ codes_and_names = {'BF' : 'brute-force search',
 
 # distance_matrix is the identifier of the 2-dim matrix
 # num_cities is the number of cities
+edge_matrix = []
+
+for i in range(0, num_cities):
+    for j in range(i+1, num_cities):
+        edge_matrix.append((i, j, distance_matrix[i][j]))
+#sorted_edges = sorted(edge_matrix, key=lambda tup: tup[2])
 
 class Node(object):
     
-    def __init__(self, state, path_cost, unvisited):
-        self.state = state # list of visited cities
-        self.path_cost = path_cost # path cost of visited cities
-        self.unvisited = unvisited  # list of unvisited cities
+    def __init__(self, state, path_cost, node_degrees, valid_edges):
+        self.state = state # list of selected edges
+        self.path_cost = path_cost # path cost of selected edges
+        self.node_degrees = node_degrees # degrees of nodes should not exceed 2
         self.heuristic = None # heurisitic value of state
+        self.valid_edges = valid_edges
 
     # define comaprison between objects
     def __lt__(self, other):
+        if self.f()  == other.f():
+            return len(self.state) > len(other.state)
         return self.f() < other.f() 
 
     def __gt__(self,other):
+        if self.f() == other.f():
+           return len(self.state) < len(other.state)
         return self.f() > other.f() 
     
     def __eq__(self,other):
-        return self.f()  == other.f() 
+        return self.f()  == other.f()
     
     # f function
     def f(self):
         return self.h() + self.g()
     
-    # heuristic fucntion
+    # heuristic function
     def h(self):
         if self.heuristic == None:
-            if self.isGoalNode():
-                self.heuristic = 0
-                return 0
-            elif self.state == []:
-                self.heuristic = 0
-                return 0   
-            else:
-                # compute the heuristic if it has not been computed before 
-                unvisited = copy.copy(self.unvisited)
-                        
-                j = self.state[-1]
-
-                G = 0
-                # create an improved heuristic
-                # the distance of a partial completion through k unvisited cities
-                # determine k
-                # do a greedy completion on k unvisited cities
-                # try adding k cities at each new child node
-                '''while unvisited != []:
-                    k = j
-                    Z = distance_matrix[j][unvisited[0]]
-                    j = unvisited[0]
-                    for i in range(1, len(unvisited)):
-                        if distance_matrix[k][unvisited[i]] < Z:
-                            Z = distance_matrix[k][unvisited[i]]
-                            j = unvisited[i]
-                    unvisited.remove(j)
-                    G += Z
-                    
-                G += distance_matrix[j][self.state[0]]    
-                self.heuristic = G'''
-                return G
+            edge_stack = copy.copy(self.valid_edges)
+            edge_stack = sorted(edge_stack, key=lambda tup: tup[2])
+            edges = copy.copy(self.state)
+            degrees = copy.copy(self.node_degrees)
+            while len(edges) != num_cities:
+                new_edge = edge_stack.pop(0)
+                
+                if valid_edge_insertion(edges, degrees, new_edge):
+                    degrees[new_edge[0]] += 1
+                    degrees[new_edge[1]] += 1
+                else:
+                    continue
+                #append new edge if no cycle
+                # append new edge if degrees are no more than 2
+                edges.append(new_edge)
+            G = 0
+            for E in list(set(edges)-set(self.state)):
+                G += E[2]
+            self.heuristic = G
+            return G
         else:
             return self.heuristic
         
@@ -281,7 +282,88 @@ class Node(object):
 
     def isGoalNode(self):
         return len(self.state) == num_cities
+
+    def toList(self):
+        lst = []
+        nodeX = (self.state[0])[0]
+        nodeY = (self.state[0])[1]
+        edges = copy.copy(self.state)
+        lst.append(nodeX)
+        while True:
+            next_edge = None
+            for edge in edges:
+                if edge[0] == nodeX:
+                    next_edge = edge
+                    nodeX = edge[1]
+                    lst.append(nodeX)
+                    break
+                if edge[1] == nodeX:
+                    next_edge = edge
+                    nodeX = edge[0]
+                    lst.append(nodeX)
+                    break
+            if next_edge == None:
+                break
+            edges.remove(next_edge)
+        return lst
+            
+def valid_edge_insertion(state, node_degrees, edge):
+    edges = copy.copy(state)
+    N = len(state) + 1
+    if edge in edges:
+        return False
+    # check degree violation
+    if node_degrees[edge[0]] == 2:
+        return False
+    if node_degrees[edge[1]] == 2:
+        return False
+
+    # check for cycles
+    if node_degrees[edge[0]] == 0 or node_degrees[edge[1]] == 0:
+        return not N == num_cities
+                    
+    cycle = False
+    #return (num_cities - N) == (degrees.count(0) + (degrees.count(1)//2))
+    #print(num_cities, len(state)+1, state, node_degrees)
+    
+    nodeX = edge[0]
+    nodeY = edge[1]
+
+    # improve this to work out if there are cycles based on degrees
+    # maybe try make this maiantain a list of not valid edges
+    
+    while True:
+        next_edge = None
+        for edge in edges:
+            if edge[0] == nodeX:
+                next_edge = edge
+                nodeX = edge[1]
+                break
+            if edge[1] == nodeX:
+                next_edge = edge
+                nodeX = edge[0]
+                break
+        if next_edge == None:
+            cycle = False
+            break
+        if nodeX == nodeY:
+            cycle = True
+            break
+        edges.remove(next_edge)
         
+    if N == num_cities:
+        return cycle
+    else:
+        return not cycle
+    # check if no new cycles
+
+def get_valid_edges(node):
+    valid_edges = []
+    for edge in node.valid_edges:
+        if valid_edge_insertion(node.state, node.node_degrees, edge):
+            valid_edges.append(edge)
+    return valid_edges
+    
 class PriorityQueue(object):
     # priority queue class
     def __init__(self):
@@ -313,8 +395,7 @@ def AStarSearch():
     # init the start node
 
     # (state = list of visited nodes, path_cost = cost of path)
-    startNode = Node([],0, list(range(0,num_cities)))
-
+    startNode = Node([],0, [0]*num_cities, edge_matrix)
     # init the fringe priority queue
     fringe = PriorityQueue()
     # is the start node a goal node? - not likely
@@ -328,28 +409,23 @@ def AStarSearch():
             node = copy.deepcopy(fringe.pop())
             if node.isGoalNode():
                 return node
-
             # create a set of unvisited nodes for this node
-            unvisited = copy.copy(node.unvisited)
             # iterate through all possible children
-            for i in unvisited:
-                # get the cost of traversing to node i from our last node
-                weight = 0
-                try:
-                    weight = distance_matrix[node.state[-1]][i]
-                except IndexError:
-                    weight = 0
-                
-                if weight > 0 or node.state == []:
+            valid_edges = get_valid_edges(node)
+            for edge in valid_edges:
+                # get the cost of including this edge
+                weight = edge[2]
+                if weight > 0:
                     newState = copy.copy(node.state)
-                    newState.append(i)
-                    newUnvisited = copy.copy(unvisited)
-                    newUnvisited.remove(i)
+                    newDegrees = copy.copy(node.node_degrees)
+                    newState.append(edge)
+                    newDegrees[edge[0]] += 1
+                    newDegrees[edge[1]] += 1
                     # init the new child node
-                    child = Node(newState, node.path_cost + weight, newUnvisited)
-                    if child.isGoalNode():
-                        child.path_cost += distance_matrix[node.state[0]][i]
-                    # push the child node
+                    child = Node(newState, node.path_cost + weight, newDegrees, valid_edges)
+                    # push the child node if it is valid
+                    # make sure no degrees are above 2
+                    # make sure no cycles unless goal node
                     fringe.push(child)
 
     # no goal node is found return None
@@ -360,7 +436,7 @@ def AStarSearch():
 solution = AStarSearch()
 
 if solution is not None:
-    tour = solution.state
+    tour = solution.toList()
     tour_length = solution.path_cost
 else:
     tour = ''
@@ -390,6 +466,7 @@ if flag == "good":
 else:
     print("***** ERROR: Your claimed tour-length of " + str(tour_length) + "is different from the true tour length of " + str(check_tour_length) + ".")
 
+print("elapsed time: ",(time.time() - start_time))
 #######################################################################################################
 ############ start of code to write a valid tour to a text (.txt) file of the correct      ############
 ############ format; if your tour is not valid then you get an error message on the        ############
