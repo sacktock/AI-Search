@@ -115,7 +115,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile042.txt"
+input_file = "AISearchfile012.txt"
 
 #######################################################################################################
 
@@ -221,7 +221,7 @@ edge_matrix = []
 for i in range(0, num_cities):
     for j in range(i+1, num_cities):
         edge_matrix.append((i, j, distance_matrix[i][j]))
-#sorted_edges = sorted(edge_matrix, key=lambda tup: tup[2])
+sorted_edges = sorted(edge_matrix, key=lambda tup: tup[2])
 
 class Node(object):
     
@@ -232,6 +232,8 @@ class Node(object):
         self.heuristic = None # heurisitic value of state
         self.valid_edges = valid_edges
 
+    def __str__(self):
+        return str(self.state)
     # define comaprison between objects
     def __lt__(self, other):
         if self.f()  == other.f():
@@ -254,9 +256,10 @@ class Node(object):
     def h(self):
         if self.heuristic == None:
             edge_stack = copy.copy(self.valid_edges)
-            edge_stack = sorted(edge_stack, key=lambda tup: tup[2])
+            #edge_stack = sorted(edge_stack, key=lambda tup: tup[2])
             edges = copy.copy(self.state)
             degrees = copy.copy(self.node_degrees)
+            G = 0
             while len(edges) != num_cities:
                 new_edge = edge_stack.pop(0)
                 
@@ -268,9 +271,7 @@ class Node(object):
                 #append new edge if no cycle
                 # append new edge if degrees are no more than 2
                 edges.append(new_edge)
-            G = 0
-            for E in list(set(edges)-set(self.state)):
-                G += E[2]
+                G += new_edge[2]
             self.heuristic = G
             return G
         else:
@@ -279,6 +280,18 @@ class Node(object):
     # g function
     def g(self):
         return self.path_cost
+
+    def complete(self):
+        while len(self.state) != num_cities:
+            new_edge = self.valid_edges.pop(0)
+
+            if valid_edge_insertion(self.state, self.node_degrees, new_edge):
+                self.node_degrees[new_edge[0]] += 1
+                self.node_degrees[new_edge[1]] += 1
+            else:
+                continue
+            self.state.append(new_edge)
+            self.path_cost += new_edge[2]
 
     def isGoalNode(self):
         return len(self.state) == num_cities
@@ -312,6 +325,7 @@ def valid_edge_insertion(state, node_degrees, edge):
     N = len(state) + 1
     if edge in edges:
         return False
+    
     # check degree violation
     if node_degrees[edge[0]] == 2:
         return False
@@ -366,6 +380,7 @@ def get_valid_edges(node):
     
 class PriorityQueue(object):
     # priority queue class
+    # try and improve the  priority queue class??
     def __init__(self):
         self.Q = []
 
@@ -377,7 +392,7 @@ class PriorityQueue(object):
 
     def push(self, obj):
         self.Q.append(obj)
-    
+            
     def pop(self):
         if (not self.isEmpty()):
             j = 0
@@ -395,7 +410,7 @@ def AStarSearch():
     # init the start node
 
     # (state = list of visited nodes, path_cost = cost of path)
-    startNode = Node([],0, [0]*num_cities, edge_matrix)
+    startNode = Node([],0, [0]*num_cities, sorted_edges)
     # init the fringe priority queue
     fringe = PriorityQueue()
     # is the start node a goal node? - not likely
@@ -406,9 +421,14 @@ def AStarSearch():
         # while fringe is not empty
         while not fringe.isEmpty():
             # pop the next node
-            node = copy.deepcopy(fringe.pop())
+            node = fringe.pop()
             if node.isGoalNode():
                 return node
+            if (time.time() - start_time) > 90:
+                print('early termination ...')
+                node.complete()
+                return node
+            
             # create a set of unvisited nodes for this node
             # iterate through all possible children
             valid_edges = get_valid_edges(node)
@@ -428,20 +448,19 @@ def AStarSearch():
                     # make sure no cycles unless goal node
                     fringe.push(child)
 
+
     # no goal node is found return None
     return None
                 
 # set of all cities
  
 solution = AStarSearch()
-
 if solution is not None:
     tour = solution.toList()
     tour_length = solution.path_cost
 else:
     tour = ''
     tour_length = -1
-
 
 #######################################################################################################
 ############ the code for your algorithm should now be complete and you should have        ############

@@ -1,0 +1,5 @@
+USER = clvp22 (Alex Goodall)
+ALGORITHM = AS, FILENAME = AISearchfile058
+NUMBER OF CITIES = 58, TOUR LENGTH = 26798
+2,57,9,38,25,4,51,22,56,30,32,31,50,10,34,55,53,13,23,47,48,43,21,5,41,52,27,15,20,33,14,35,12,24,29,46,39,7,26,3,44,45,54,19,18,42,0,16,37,6,28,11,1,17,36,8,40,49
+NOTE = Basic heuristic that takes into account path cost and nearest neighbour

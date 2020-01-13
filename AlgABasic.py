@@ -115,7 +115,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile535.txt"
+input_file = "AISearchfile058.txt"
 
 #######################################################################################################
 
@@ -323,7 +323,7 @@ def AStarSearch():
         # while fringe is not empty
         while not fringe.isEmpty():
             # pop the next node
-            node = copy.deepcopy(fringe.pop())
+            node = fringe.pop()
             if node.isGoalNode():
                 return node
             # create a set of unvisited nodes for this node

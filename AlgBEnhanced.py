@@ -114,7 +114,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile042.txt"
+input_file = "AISearchfile058.txt"
 
 #######################################################################################################
 
@@ -315,7 +315,7 @@ def reproduce(X, Y):
     donor = X.encoding
     receiver = Y.encoding
     lst = donor[:crossover]
-    unvisited = list(set(receiver) - set(lst))
+    unvisited = donor[crossover:]
 
     while unvisited != []:
         c = lst[-1]
@@ -346,6 +346,7 @@ def reproduce(X, Y):
     best_parent_fitness = max([X,Y]).f()
     temperature = 1.0
     while True:
+        # improve this by calculating tour lengths quicker
         MI = random.sample(range(0, len(lst)), 4)
         MI.sort()
         i, j, k, l = MI[0], MI[1], MI[2], MI[3]
