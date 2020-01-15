@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import random
+from numpy.random import choice
 
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
@@ -264,13 +265,16 @@ class Generation(object):
         maximum = max(self.population).f()
         # calculate the value of the least fit individual in the population
             
-        weight=[]
+        weights=[]
         # fix the weight so fittest get chosen
         # the smaller an individuals f value is the fitter it is
         # a smaller f value is a smaller tour which is what we wnat
         for individual in self.population:
-            weight.append(maximum - individual.f()) # weight = max - fitness 
-
+            weights.append(maximum - individual.f()) # weight = max - fitness 
+        total = sum(weights)
+        probability_dist = []
+        for w in weights:
+            probability_dist.append(w / total)
         # increment the generation number
         self.number += 1
         # init the new population
@@ -280,7 +284,7 @@ class Generation(object):
         for _ in range(self.N):
             # randomly select 2 individuals from the population
             # fitter ones are more likely to get picked
-            lst = random.choices(self.population, weights=weight, k=2)
+            lst = choice(self.population, 2, p=probability_dist, replace=False)
             parentX = lst[0]
             parentY = lst[1]
             # reproduce a child
