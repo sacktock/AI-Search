@@ -3,8 +3,6 @@ import sys
 import time
 import random
 
-start_time = time.time()
-
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
     # characters with ord < "from_ord" and ord > "to_ord" and return the concatenation
@@ -192,7 +190,7 @@ alg_code = "GA"
 ############ you like, e.g., "in my basic greedy search, I broke ties by always visiting   ############
 ############ the first nearest city found" or leave it empty if you wish                   ############
 
-added_note = ""
+added_note = "This GA algorithm consists of indiviuals that represent tours (their encodings are lists of n cities).\n The mating process is a basic splicing procedure, the basic mutation process involves swapping to neighbouring cities, and the selction process is performed using a weighted probability function."
 
 ############ the line below sets up a dictionary of codes and search names (you need do    ############
 ############ nothing unless you implement an alternative algorithm and I give you a code   ############
@@ -213,10 +211,10 @@ codes_and_names = {'BF' : 'brute-force search',
 #######################################################################################################
 
 class Individual(object):
+    # the indiviual class represents a solution the the TSP as a list of cities
     def __init__(self, encoding):
-        # encoding is a tour of cities
-        self.encoding = encoding
-        self.fitness = None
+        self.encoding = encoding # encoding is a list of cities that represents a tour
+        self.fitness = None # the fitness of the indiviual
 
     # define how to compare individuals
     def __lt__(self, other):
@@ -228,9 +226,10 @@ class Individual(object):
     def __eq__(self,other):
         return self.f() == other.f()
 
-    # fitness function - the value of of the tour encoded by the individual
+    # f / fitness function - the value of of the tour encoded by the individual
     def f(self):
         if self.fitness == None:
+            # compute the fitness value of the individual
             tour = self.encoding
             tour_length = 0
             for i in range(0, num_cities-1):
@@ -239,37 +238,42 @@ class Individual(object):
             self.fitness = tour_length
             return tour_length
         else:
+            # if the fitness has already been computed return the value
             return self.fitness
-        # return fitness value of individual
 
 class Generation(object):
+    # the generation class represents a group of indiviuals from the same generation
     def __init__(self, number, population):
-        self.number = number # the number of the generation 
-        self.population = population # population as a list of objects
-        self.N = 100 # number of individuals in the population
+        self.number = number # the number of the generation (1st generation or 2nd ...)
+        self.population = population # the population its self is a list of individuals
+        self.N = 100 # the number of individuals in the population
 
     def new(self):
+        # creates a new randomly generated population
         self.number = 1
         for i in range(0, self.N):
             lst = list(range(0, num_cities))
+            # randomly shuffle the cities around to create a randomly generated encoding
             random.shuffle(lst)
+            # append the new randomly generated individual to the population
             self.population.append(Individual(lst))
-            # append randomly generated individuals to the population
 
     def next(self):
-        # create a new generation from an old one
-        # create the probability distribution
-        maximum = self.population[0].f()
-        for i in range(1, self.N):
-            if maximum < self.population[i].f():
-                maximum = self.population[i].f()
+        # evolve the current generation creating a new population from the current population
+        # create a probability distribution ...
+        maximum = max(self.population).f()
+        # calculate the value of the least fit individual in the population
             
         weight=[]
         # fix the weight so fittest get chosen
+        # the smaller an individuals f value is the fitter it is
+        # a smaller f value is a smaller tour which is what we wnat
         for individual in self.population:
-            weight.append(maximum - individual.f())
-            
+            weight.append(maximum - individual.f()) # weight = max - fitness 
+
+        # increment the generation number
         self.number += 1
+        # init the new population
         new_population = []
         
         # repeat this N times until we have a new population of N children
@@ -281,17 +285,20 @@ class Generation(object):
             parentY = lst[1]
             # reproduce a child
             child = reproduce(parentX, parentY)
+            # append the child to the new population
             new_population.append(child)
         # set the new population
         self.population = new_population
         
     def get_best(self):
         # return the fittest individual in the population
-        return max(self.population)
+        # the fittest is the indiviual with the smallest f value / best tour
+        return min(self.population)
             
 def reproduce(X, Y):
     # create an offspring from 2 parents
-    # splice parents encoding and concatenate them
+    # basic mating procedure
+    # splice the parents encoding and concatenate them
     # single point crossover
     crossover = random.randint(0, num_cities-1)
     lstX = X.encoding
@@ -301,21 +308,22 @@ def reproduce(X, Y):
     diff = list(set(lstX)-set(lst))
     for i in range(crossover, len(lst)):
         if lst[i] in lstX[:crossover]:
+            # if we have a duplicted city naively get the next unvisited city (diff is sorted asc.)
             lst[i] = diff.pop()
             
-    # randomly mutate the child encoding
+    # basic mutation process
     # pick a random city and swap it with its right neighbour
     mut_index = random.randint(0, num_cities-1)
     temp = lst[mut_index]
     lst[mut_index] = lst[(mut_index + 1)%(num_cities-1)]
     lst[(mut_index + 1)%(num_cities-1)] = temp
-    # create the encoding 
-    # return the new individual
+    # init and return the new individual / offspring
     return Individual(lst)
          
 def search():
-    # create a randomly generated population
+    # init the population
     population = Generation(1, [])
+    # create a randomly generated population
     population.new()
     # evolve the population N times
     N = 100
@@ -325,7 +333,7 @@ def search():
     return population.get_best()
 
 solution = search()
-
+# write the solution to the appropriate variables
 if solution is not None:
     tour = solution.encoding
     tour_length = solution.f()
@@ -354,7 +362,7 @@ if flag == "good":
     print("Great! Your tour-length of " + str(tour_length) + " from your " + codes_and_names[alg_code] + " is valid!")
 else:
     print("***** ERROR: Your claimed tour-length of " + str(tour_length) + "is different from the true tour length of " + str(check_tour_length) + ".")
-print("elapsed time: ",(time.time() - start_time))
+
 #######################################################################################################
 ############ start of code to write a valid tour to a text (.txt) file of the correct      ############
 ############ format; if your tour is not valid then you get an error message on the        ############

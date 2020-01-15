@@ -4,8 +4,6 @@ import time
 import random
 import math
 
-start_time = time.time()
-
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
     # characters with ord < "from_ord" and ord > "to_ord" and return the concatenation
@@ -193,7 +191,7 @@ alg_code = "GA"
 ############ you like, e.g., "in my basic greedy search, I broke ties by always visiting   ############
 ############ the first nearest city found" or leave it empty if you wish                   ############
 
-added_note = ""
+added_note = "This GA algorithm consists of indiviuals that represent tours (their encodings are lists of n cities).\n The improved mating strategy is a less naive single point crossover method, the mutation process consists of randomised 4-Opt moves with probabalistic acceptance criterion.\n A 3-Opt local search optimization algorithm is applied to the encodings of the children after the mating process.\n This algorithm is signifigantly more computationally expensive than the basic version so the 3-Opt optimization is omitted for larger city sets.\n The population is also generated from greedy / nearest neighbour tours, and is only evolved once, because experimentally population size is more important than number of generations for GAs."
 
 ############ the line below sets up a dictionary of codes and search names (you need do    ############
 ############ nothing unless you implement an alternative algorithm and I give you a code   ############
@@ -213,12 +211,11 @@ codes_and_names = {'BF' : 'brute-force search',
 ############    now the code for your algorithm should begin                               ############
 #######################################################################################################
 
-###### iterated lin kernighan algorithm
 class Individual(object):
-    def __init__(self, encoding):
-        # encoding is a tour of cities
-        self.encoding = encoding
-        self.fitness = None
+    # the indiviual class represents a solution the the TSP as a list of cities
+    def __init__(self, encoding, fitness):
+        self.encoding = encoding # encoding is a list of cities that represent a tour
+        self.fitness = fitness # the fitness of the individual
 
     # define how to compare individuals
     def __lt__(self, other):
@@ -230,59 +227,77 @@ class Individual(object):
     def __eq__(self,other):
         return self.f() == other.f()
 
-    # fitness function - the value of of the tour encoded by the individual
+    # f / fitness function - the value of of the tour encoded by the individual
     def f(self):
         if self.fitness == None:
+            # compute the fitness value of the individual
             tour = self.encoding
             tour_length = tour_length_calc(self.encoding)
             self.fitness = tour_length
             return tour_length
         else:
+            # if the fitness has already been computed return the value
             return self.fitness
-        # return fitness value of individual
 
 class Generation(object):
+    # the generation class represents a group of individuals from the same generation
     def __init__(self, number, population):
-        # population size corresponds to the amount of greedy tours we generate
-        
-        self.number = number # the number of the generation 
-        self.population = population # population as a list of objects
-        self.N = num_cities # number of individuals in the population
+        # the population size corresponds to the number of greedy tours we generate
+        self.number = number # the number of the generation (1st generation or 2nd ...)
+        self.population = population # the population its self is a list of individuals
+        self.N = num_cities # the number of individuals in the population
 
     def new(self):
-        # start from greedy tours instead of random tours
+        # create a newly generated population
+        # we start from greedy tours instead of random tours
         # these yield better end tours
-        
+        # we create N greedy tours each starting at different cities
         self.number = 1
+        # nearest neighbour / greedy completion
         for i in range(0, self.N):
+            # for each i
+            # create the unvisited list
             unvisited = list(range(0, num_cities))
+            # remove i
             unvisited.remove(i)
+            # create the visited list
             visited = [i]
             j = i
+            G = 0
             while unvisited != []:
-                k = j
+                k = j # k is the last visited city
                 Z = distance_matrix[j][unvisited[0]]
                 j = unvisited[0]
                 for l in range(1, len(unvisited)):
                     if distance_matrix[k][unvisited[l]] < Z:
                         Z = distance_matrix[k][unvisited[l]]
                         j = unvisited[l]
+                # j is the nearest neighbour to k
+                # j has been visited and is now the last visited city
                 unvisited.remove(j)
                 visited.append(j)
-            self.population.append(Individual(visited))
+                G += Z
+            G += distance_matrix[visited[-1]][visited[0]]
+            # append the greedy tour to the population
+            self.population.append(Individual(visited, G))
     
 
     def next(self):
-        # create a new generation from an old one
-        # create the probability distribution
+        # evolve the current generation creating a new population from the current population
+        # create a probability distribution ...
         maximum = max(self.population).f()
+        # calculate the value of the least fit individual in the population
             
         weight=[]
         # fix the weight so fittest get chosen
+        # the smaller an individuals f value is the fitter it is
+        # a smaller f value is a smaller tour which is what we wnat
         for individual in self.population:
-            weight.append(maximum - individual.f())
-            
+            weight.append(maximum - individual.f()) # weight = max - fitness 
+
+        # increment the generation number    
         self.number += 1
+        # init the new population
         new_population = []
         # repeat this N times until we have a new population of N children
         for _ in range(self.N):
@@ -293,36 +308,38 @@ class Generation(object):
             parentY = lst[1]
             # reproduce a child
             child = reproduce(parentX, parentY)
+            # append the child to the new population
             new_population.append(child)
         # set the new population
         self.population = new_population
         
     def get_best(self):
         # return the fittest individual in the population
-        return max(self.population)
+        return min(self.population)
             
 def reproduce(X, Y):
+    # create an offspring from 2 parents
     # improved crossover/mating strategy
     # use 4-Opt moves for mutations
     # use simulated annealing for randomised acceptance criterion
     # if mutated child is worse than parent accept with probability e^delta/T
-    # apply our local optimisation algoritm Opt3 on offspring
+    # apply a local optimisation algoritm Opt3 on offspring
 
-    # create an offspring from 2 parents
-    # splice parents encoding and concatenate them
-    # single point crossover
+    # choose a random crossover point
     crossover = random.randint((num_cities//10), ((num_cities-1)//2))
-    donor = X.encoding
-    receiver = Y.encoding
-    lst = donor[:crossover]
-    unvisited = donor[crossover:]
+    donor = X.encoding # one parent is a donor
+    receiver = Y.encoding # one parent is a receiver
+    lst = donor[:crossover] # lst is our child encoding
+    unvisited = donor[crossover:] # list of unvisited cities
 
-    while unvisited != []:
-        c = lst[-1]
+    while unvisited != []: # while we have some unvisited cities
+        c = lst[-1] # c is the last visited city in our encoding
         index = receiver.index(c)
-        neighbourX = receiver[(index+1)%(num_cities)]
-        neighbourY = receiver[(index-1)%(num_cities)]
+        neighbourX = receiver[(index+1)%(num_cities)] # right neighbour of c in receiver
+        neighbourY = receiver[(index-1)%(num_cities)] # left neighbour of c in receiver
+        # if either of the neighbours of c can be found the encoding of receiver we append one of them
         if neighbourX in unvisited:
+            # right neighbour wins in tie breaker
             lst.append(neighbourX)
             unvisited.remove(neighbourX)
             continue
@@ -330,9 +347,11 @@ def reproduce(X, Y):
             lst.append(neighbourY)
             unvisited.remove(neighbourY)
             continue
-        neighbourX = donor[(index+1)%(num_cities)]
-        neighbourY = donor[(index-1)%(num_cities)]
+        neighbourX = donor[(index+1)%(num_cities)] # right neighbour of c in donor
+        neighbourY = donor[(index-1)%(num_cities)] # left neighbour of c in donor
+        # if either of the neighbours of c can be found the encoding of receiver we append one of them
         if neighbourX in unvisited:
+            # right neighbour wins in tie breaker
             lst.append(neighbourX)
             unvisited.remove(neighbourX)
             continue
@@ -340,89 +359,132 @@ def reproduce(X, Y):
             lst.append(neighbourY)
             unvisited.remove(neighbourY)
             continue
+        # otherwise we add the next unvisited node w.r.t the donors encoding
         lst.append(unvisited.pop(0))
 
-    # randomly mutate the child encoding
-    best_parent_fitness = max([X,Y]).f()
-    temperature = 1.0
+    # improved mutation strategy
+    best_parent_fitness = max([X,Y]).f() # fitness of of fittest parent
+    temperature = 1.0 # set temperature to 1.0
+    child_fitness = tour_length_calc(lst) # calculate the child's fitness at the moment
     while True:
-        # improve this by calculating tour lengths quicker
+        # we perform 4-Opt moves for mutation
+        # that is we remove 4 edges and try to reconnect the 4 resulting paths in some other way
+        # randomly choose 4 edges
         MI = random.sample(range(0, len(lst)), 4)
+        # sort the 4 edges
         MI.sort()
+        # create the 4 paths s1, s2, s3 and s4
         i, j, k, l = MI[0], MI[1], MI[2], MI[3]
         s1 = lst[l:]+lst[:i]
         s2 = lst[i:j]
         s3 = lst[j:k]
         s4 = lst[k:l]
         new_lst = []
+        # randomly choose a 4-Opt move and perform it
+        # recalculate the length of the new tour / fitness of the new child encoding
+        # this part is directly coded for efficiency
         mutation_process = random.randint(0, 17)
+        length = child_fitness - distance_matrix[s1[-1]][s2[0]] - distance_matrix[s2[-1]][s3[0]] - distance_matrix[s3[-1]][s4[0]] - distance_matrix[s4[-1]][s1[0]]
         if mutation_process == 0:#
             new_lst = s1 + s3 + s2 + s4[::-1]
+            length = length + distance_matrix[s1[-1]][s3[0]] + distance_matrix[s3[-1]][s2[0]] + distance_matrix[s2[-1]][s4[-1]] + distance_matrix[s4[0]][s1[0]]
         if mutation_process == 1:#
             new_lst = s1 + s3 + s2[::-1] + s4[::-1]
+            length = length + distance_matrix[s1[-1]][s3[0]] + distance_matrix[s3[-1]][s2[-1]] + distance_matrix[s2[0]][s4[-1]] + distance_matrix[s4[0]][s1[0]]
         if mutation_process == 2:#
-            new_lst = s1 + s3 + s4[::-1] + s2 
+            new_lst = s1 + s3 + s4[::-1] + s2
+            length = length + distance_matrix[s1[-1]][s3[0]] + distance_matrix[s3[-1]][s4[-1]] + distance_matrix[s4[0]][s2[0]] + distance_matrix[s2[-1]][s1[0]]
         if mutation_process == 3:#
             new_lst = s1 + s2[::-1] + s3[::-1] + s4[::-1]
+            length = length + distance_matrix[s1[-1]][s2[-1]] + distance_matrix[s2[0]][s3[-1]] + distance_matrix[s3[0]][s4[-1]] + distance_matrix[s4[0]][s1[0]]
         if mutation_process == 4:#
             new_lst = s1 + s2[::-1] + s4[::-1] + s3[::-1]
+            length = length + distance_matrix[s1[-1]][s2[-1]] + distance_matrix[s2[0]][s4[-1]] + distance_matrix[s4[0]][s3[-1]] + distance_matrix[s3[0]][s1[0]]
         if mutation_process == 5:#
-            new_lst = s1 + s2[::-1] + s3 + s4[::-1] 
+            new_lst = s1 + s2[::-1] + s3 + s4[::-1]
+            length = length + distance_matrix[s1[-1]][s2[-1]] + distance_matrix[s2[0]][s3[0]] + distance_matrix[s3[-1]][s4[-1]] + distance_matrix[s4[0]][s1[0]]
         if mutation_process == 6:#
             new_lst = s1 + s3[::-1] + s2 + s4[::-1]
+            length = length + distance_matrix[s1[-1]][s3[-1]] + distance_matrix[s3[0]][s2[0]] + distance_matrix[s2[-1]][s4[-1]] + distance_matrix[s4[0]][s1[0]]
         if mutation_process == 7:#
             new_lst = s1 + s3[::-1] + s4 + s2
+            length = length + distance_matrix[s1[-1]][s3[-1]] + distance_matrix[s3[0]][s4[0]] + distance_matrix[s4[-1]][s2[0]] + distance_matrix[s2[-1]][s1[0]]
         if mutation_process == 8:#
             new_lst = s1 + s3[::-1] + s4[::-1] + s2
+            length = length + distance_matrix[s1[-1]][s3[-1]] + distance_matrix[s3[0]][s4[-1]] + distance_matrix[s4[0]][s2[0]] + distance_matrix[s2[-1]][s1[0]]
         if mutation_process == 9:#
             new_lst = s1 + s4 + s3 + s2
+            length = length + distance_matrix[s1[-1]][s4[0]] + distance_matrix[s4[-1]][s3[0]] + distance_matrix[s3[-1]][s2[0]] + distance_matrix[s2[-1]][s1[0]]
         if mutation_process == 10:#
             new_lst = s1 + s4 + s3[::-1] + s2
+            length = length + distance_matrix[s1[-1]][s4[0]] + distance_matrix[s4[-1]][s3[-1]] + distance_matrix[s3[0]][s2[0]] + distance_matrix[s2[-1]][s1[0]]
         if mutation_process == 11:#
             new_lst = s1 + s4 + s2 + s3[::-1]
+            length = length + distance_matrix[s1[-1]][s4[0]] + distance_matrix[s4[-1]][s2[0]] + distance_matrix[s2[-1]][s3[-1]] + distance_matrix[s3[0]][s1[0]]
         if mutation_process == 12:#
             new_lst = s1 + s4 + s2[::-1] + s3
+            length = length + distance_matrix[s1[-1]][s4[0]] + distance_matrix[s4[-1]][s2[-1]] + distance_matrix[s2[0]][s3[0]] + distance_matrix[s3[-1]][s1[0]]
         if mutation_process == 13:#
             new_lst = s1 + s4 + s2[::-1] + s3[::-1]
+            length = length + distance_matrix[s1[-1]][s4[0]] + distance_matrix[s4[-1]][s2[-1]] + distance_matrix[s2[0]][s3[-1]] + distance_matrix[s3[0]][s1[0]]
         if mutation_process == 14:#
             new_lst = s1 + s4[::-1] + s3 + s2
+            length = length + distance_matrix[s1[-1]][s4[-1]] + distance_matrix[s4[0]][s3[0]] + distance_matrix[s3[-1]][s2[0]] + distance_matrix[s2[-1]][s1[0]]
         if mutation_process == 15:#
             new_lst = s1 + s4[::-1] + s2 + s3[::-1]
+            length = length + distance_matrix[s1[-1]][s4[-1]] + distance_matrix[s4[0]][s2[0]] + distance_matrix[s2[-1]][s3[-1]] + distance_matrix[s3[0]][s1[0]]
         if mutation_process == 16:#
             new_lst = s1 + s4[::-1] + s2[::-1] + s3
+            length = length + distance_matrix[s1[-1]][s4[-1]] + distance_matrix[s4[0]][s2[-1]] + distance_matrix[s2[0]][s3[0]] + distance_matrix[s3[-1]][s1[0]]
         if mutation_process == 17:#
             new_lst = s1 + s4[::-1] + s2[::-1] + s3[::-1]
-        delta =  best_parent_fitness - tour_length_calc(lst)
+            length = length + distance_matrix[s1[-1]][s4[-1]] + distance_matrix[s4[0]][s2[-1]] + distance_matrix[s2[0]][s3[-1]] + distance_matrix[s3[0]][s1[0]]
+        # we implement randomised acceptance criterion for the child encoding
+        delta =  best_parent_fitness - length # delta is the fitness of the fittest parent minus the length of the new tour / child encoding
         if delta > 0:
+            # if delta is positive then our child is fitter than both its parents and we have found an improved tour so accept
             lst = new_lst
+            child_fitness = length
             break
         else:
             if random.random() < math.e**(delta/temperature):
+                # if delta is negative then accept the child encoding with probability e^delta/T
                 lst = new_lst
+                child_fitness = length
                 break
             else:
+                # if we fail in accept the child encoding then we try another random 4-Opt move at randomly selected edges
+                # we increase the temperature
                 temperature = temperature*2
-        
-    # create the encoding 
-    # return the new individual
-    return Individual(local_search(lst))
+    # finally init and return the individual
+    # but first we apply a 3-Opt local optimization algorithm on the encoding
+    if num_cities <= 90:
+        # if N is greater than 90 the 3-Opt local search algorithm is too computationally expensive so we ommit it
+        lst, child_fitness = local_search(lst, child_fitness)
+    return Individual(lst,child_fitness)
 
-# improve this so we don't need to keep calling tour_length_calc
-def local_search(tour):
-    tour_length = tour_length_calc(tour)
+def local_search(tour, tour_length):
+    # this function performs the 3-Opt local search optimization algorithm on a given tour / encoding
+    # 3-Opt is works by removing 3 edges and then reconnecting the 3 paths in a better way
+    # we try this for every possible configuration of edges, this is O(n^3) ...
+    # calculate the tour length of the current tour
     for i in range(1, len(tour) - 2):
         for j in range(i+1, len(tour)-1):
             for k in range(j+1, len(tour)):
+                # create the 3 paths s1, s2, s3
                 s1 = tour[k:]+tour[:i]
                 s2 = tour[i:j]
                 s3 = tour[j:k]
+                # set the base length for quick calculation
+                # try all possible 3-Opt moves in turn
                 base_length = tour_length - distance_matrix[s1[-1]][s2[0]] - distance_matrix[s2[-1]][s3[0]] - distance_matrix[s3[-1]][s1[0]]
                 new_tour = s1 + s3 + s2
                 new_tour_length = base_length + distance_matrix[s1[-1]][s3[0]] + distance_matrix[s3[-1]][s2[0]] + distance_matrix[s2[-1]][s1[0]]
                 if new_tour_length < tour_length:
+                    # if we find a better tour set it to the current best tour
                     tour = new_tour
                     tour_length = new_tour_length
-                    
+                # this part is directly coded for efficiency
                 new_tour = s1 + s3 + s2[::-1]
                 new_tour_length = base_length + distance_matrix[s1[-1]][s3[0]] + distance_matrix[s3[-1]][s2[-1]] + distance_matrix[s2[0]][s1[0]]
                 
@@ -443,9 +505,11 @@ def local_search(tour):
                 if new_tour_length < tour_length:
                     tour = new_tour
                     tour_length = new_tour_length
-    return tour
+    # return the best tour
+    return tour, tour_length
 
 def tour_length_calc(tour):
+    # function that calculates the length of a tour represented by a list / encoding
     tour_length = 0
     for i in range(0, num_cities-1):
         tour_length += distance_matrix[tour[i]][tour[i+1]]
@@ -453,8 +517,9 @@ def tour_length_calc(tour):
     return tour_length
         
 def search():
-    # create a new population
+    # init the population
     population = Generation(1, [])
+    # create a new population
     population.new()
     # evolve the population N times
     N = 1
@@ -464,13 +529,14 @@ def search():
     return population.get_best()
 
 solution = search()
-
+# write the solution to the appropriate variables
 if solution is not None:
     tour = solution.encoding
     tour_length = solution.f()
 else:
     tour = ''
     tour_length = -1
+    
 #######################################################################################################
 ############ the code for your algorithm should now be complete and you should have        ############
 ############ computed a tour held in the list "tour" of length "tour_length"               ############
@@ -493,7 +559,7 @@ if flag == "good":
     print("Great! Your tour-length of " + str(tour_length) + " from your " + codes_and_names[alg_code] + " is valid!")
 else:
     print("***** ERROR: Your claimed tour-length of " + str(tour_length) + "is different from the true tour length of " + str(check_tour_length) + ".")
-print("elapsed time: ",(time.time() - start_time))
+
 #######################################################################################################
 ############ start of code to write a valid tour to a text (.txt) file of the correct      ############
 ############ format; if your tour is not valid then you get an error message on the        ############

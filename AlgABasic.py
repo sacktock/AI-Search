@@ -5,8 +5,6 @@ import random
 import copy
 import heapq
 
-start_time = time.time()
-
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
     # characters with ord < "from_ord" and ord > "to_ord" and return the concatenation
@@ -115,7 +113,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile058.txt"
+input_file = "AISearchfile017.txt"
 
 #######################################################################################################
 
@@ -194,7 +192,7 @@ alg_code = "AS"
 ############ you like, e.g., "in my basic greedy search, I broke ties by always visiting   ############
 ############ the first nearest city found" or leave it empty if you wish                   ############
 
-added_note = "Basic heuristic that takes into account path cost and nearest neighbour"
+added_note = "For this AS algorithm the node states represent degenerate tours or tours, the heuristic function is the greedy completion / nearest neighbour completion of the current state"
 
 ############ the line below sets up a dictionary of codes and search names (you need do    ############
 ############ nothing unless you implement an alternative algorithm and I give you a code   ############
@@ -214,11 +212,9 @@ codes_and_names = {'BF' : 'brute-force search',
 ############    now the code for your algorithm should begin                               ############
 #######################################################################################################
 
-# distance_matrix is the identifier of the 2-dim matrix
-# num_cities is the number of cities
 
 class Node(object):
-    
+    # class for nodes that represent tours or degenerate tours
     def __init__(self, state, path_cost, unvisited):
         self.state = state # list of visited cities
         self.path_cost = path_cost # path cost of visited cities
@@ -235,17 +231,19 @@ class Node(object):
     def __eq__(self,other):
         return self.f()  == other.f() 
     
-    # f function
+    # evaluation function - f function
     def f(self):
         return self.h() + self.g()
     
-    # heuristic fucntion
+    # heuristic fucntion - h function
     def h(self):
         if self.heuristic == None:
             if self.isGoalNode():
                 self.heuristic = 0
                 return 0
             elif self.state == []:
+                # empty state has no heuristic value
+                # this ensures we have a node the represents [i] for all i in num_cities
                 self.heuristic = 0
                 return 0   
             else:
@@ -255,25 +253,30 @@ class Node(object):
                 j = self.state[-1]
 
                 G = 0
-                # distance of the greedy completion (from the current end-city)
+                # value of the greedy completion / nearest neighbour completion (from the current end-city)
                 while unvisited != []:
-                    k = j
+                    k = j # k is the last visited city
                     Z = distance_matrix[j][unvisited[0]]
                     j = unvisited[0]
                     for i in range(1, len(unvisited)):
                         if distance_matrix[k][unvisited[i]] < Z:
                             Z = distance_matrix[k][unvisited[i]]
                             j = unvisited[i]
+                    # j is the nearest neighbour to k
+                    # j has been visited and is now the last visited city
                     unvisited.remove(j)
+                    # sum the value
                     G += Z
-                    
+
+                # save the heuristic value for later and return it 
                 G += distance_matrix[j][self.state[0]]    
                 self.heuristic = G
                 return G
         else:
+            # return the heuristic value if it has been computed already
             return self.heuristic
         
-    # g function
+    # path cost - g function
     def g(self):
         return self.path_cost
 
@@ -281,7 +284,8 @@ class Node(object):
         return len(self.state) == num_cities
         
 class PriorityQueue(object):
-    # priority queue class
+    # priority queue class used as the fringe
+    # uses heapq for better performance
     def __init__(self):
         self.Q = []
 
@@ -292,51 +296,50 @@ class PriorityQueue(object):
         return len(self.Q) == 0
 
     def push(self, obj):
-        self.Q.append(obj)
+        heapq.heappush(self.Q, obj)
     
     def pop(self):
         if (not self.isEmpty()):
-            j = 0
-            for i in range(1,len(self.Q)):
-                if self.Q[i] < self.Q[j]:
-                    j = i
-            item = copy.deepcopy(self.Q[j])
-            del self.Q[j]
-            return item
+            return heapq.heappop(self.Q)
         else:
             return None
 
 
 def AStarSearch():
     # init the start node
-
-    # (state = list of visited nodes, path_cost = cost of path)
+    # (state = list of visited nodes, path_cost = cost of path, unvisited = list of unvisited nodes)
     startNode = Node([],0, list(range(0,num_cities)))
-
     # init the fringe priority queue
     fringe = PriorityQueue()
     # is the start node a goal node? - not likely
     if startNode.isGoalNode():
         return startNode
     else:
+        # push the start node to the fringe
         fringe.push(startNode)
         # while fringe is not empty
         while not fringe.isEmpty():
             # pop the next node
             node = fringe.pop()
             if node.isGoalNode():
+                # if it is a goal node return - it must be minimal among the fringe
+                # A* search says we terminate if our node is a goal node and minimal among all other nodes on the fringe
                 return node
-            # create a set of unvisited nodes for this node
+            # create a list of unvisited nodes for this node
             unvisited = copy.copy(node.unvisited)
-            # iterate through all possible children
+            # iterate through the unvisisted cities creating all possible child nodes
             for i in unvisited:
                 # get the cost of traversing to node i from our last node
                 weight = 0
                 try:
                     weight = distance_matrix[node.state[-1]][i]
                 except IndexError:
+                    # we set the weight to 0 if we have the empty state []
+                    # adding some arbitrary city to the empty state has no cost
                     weight = 0
-                
+
+                # ensure weight is atleast zero - zero weights can't exist in the problem definition
+                # if the weight is zero this could be because we have the empty state [] - allow this case
                 if weight > 0 or node.state == []:
                     newState = copy.copy(node.state)
                     newState.append(i)
@@ -344,18 +347,17 @@ def AStarSearch():
                     newUnvisited.remove(i)
                     # init the new child node
                     child = Node(newState, node.path_cost + weight, newUnvisited)
+                    # if the child node is a goal node make sure to update the path cost accordingly
                     if child.isGoalNode():
                         child.path_cost += distance_matrix[node.state[0]][i]
-                    # push the child node
+                    # push the child node to the fringe
                     fringe.push(child)
 
-    # no goal node is found return None
+    # if no goal node is found we have exhausted the fringe and return None
     return None
                 
-# set of all cities
- 
 solution = AStarSearch()
-
+# write the solution to the appropriate variables
 if solution is not None:
     tour = solution.state
     tour_length = solution.path_cost
@@ -386,7 +388,7 @@ if flag == "good":
     print("Great! Your tour-length of " + str(tour_length) + " from your " + codes_and_names[alg_code] + " is valid!")
 else:
     print("***** ERROR: Your claimed tour-length of " + str(tour_length) + "is different from the true tour length of " + str(check_tour_length) + ".")
-print("elapsed time: ",(time.time() - start_time))
+
 #######################################################################################################
 ############ start of code to write a valid tour to a text (.txt) file of the correct      ############
 ############ format; if your tour is not valid then you get an error message on the        ############
