@@ -5,6 +5,8 @@ import random
 import copy
 import heapq
 
+start_time = time.time()
+
 def read_file_into_string(input_file, from_ord, to_ord):
     # take a file "input_file", read it character by character, strip away all unwanted
     # characters with ord < "from_ord" and ord > "to_ord" and return the concatenation
@@ -113,7 +115,7 @@ def make_distance_matrix_symmetric(num_cities):
 ############ supplied internally as the default file or via a command line execution.      ############
 ############ if your input file does not exist then the program will crash.                ############
 
-input_file = "AISearchfile058.txt"
+input_file = "AISearchfile175.txt"
 
 #######################################################################################################
 
@@ -192,7 +194,7 @@ alg_code = "AS"
 ############ you like, e.g., "in my basic greedy search, I broke ties by always visiting   ############
 ############ the first nearest city found" or leave it empty if you wish                   ############
 
-added_note = "For this AS algorithm the node states represent degenerate tours or tours, the heuristic function is the greedy completion / nearest neighbour completion of the current state"
+added_note = "For this AS algorithm the node states represent lists of selected edges, the heuristic function is the greedy selection of edges so that a valid tour is produced. This algorithm improves of the pervious one because the greedy selection of edges heuristic in general gets closer to the optimal solution that the nearest neighbour heuristic. However, this algorithm is more computationally expensive, so there is an enforced early termination after 90 seconds of searching the state space."
 
 ############ the line below sets up a dictionary of codes and search names (you need do    ############
 ############ nothing unless you implement an alternative algorithm and I give you a code   ############
@@ -212,77 +214,196 @@ codes_and_names = {'BF' : 'brute-force search',
 ############    now the code for your algorithm should begin                               ############
 #######################################################################################################
 
+# this version of A* search models the problem as a list of selected edges
+# the state of the nodes are a list of tuples that represent edges between two cities
+
+# create the edge matrix from the distance matrix
+edge_matrix = []
+for i in range(0, num_cities):
+    for j in range(i+1, num_cities):
+        edge_matrix.append((i, j, distance_matrix[i][j]))
+# sort the edge matrix in ascending order of edge weight
+sorted_edges = sorted(edge_matrix, key=lambda tup: tup[2])
+# sorted_edges should be a list of tuples [(1,2,40), (1,3,43), ....]
+# where (1,2,40) means an edge from city 1 to city 2 costs 40
 
 class Node(object):
-    # class for nodes that represent tours or degenerate tours
-    def __init__(self, state, path_cost, unvisited):
-        self.state = state # list of visited cities
-        self.path_cost = path_cost # path cost of visited cities
-        self.unvisited = unvisited  # list of unvisited cities
+    # class for nodes that represent a list of selected edges
+    # the selected edges represent a forest, or a tour if they are goal nodes
+    def __init__(self, state, cost, node_degrees, valid_edges):
+        self.state = state # list of selected edges
+        self.cost = cost # the cost of selected edges
+        self.node_degrees = node_degrees # degrees of nodes should not exceed 2
         self.heuristic = None # heurisitic value of state
+        self.valid_edges = valid_edges # list of valid edges that if added do not violate any constraints
 
     # define comaprison between objects
     def __lt__(self, other):
+        if self.f()  == other.f():
+            return len(self.state) > len(other.state)
         return self.f() < other.f() 
 
     def __gt__(self,other):
+        if self.f() == other.f():
+           return len(self.state) < len(other.state)
         return self.f() > other.f() 
     
     def __eq__(self,other):
-        return self.f()  == other.f() 
+        return self.f()  == other.f()
     
-    # evaluation function - f function
+    # evaluation funtcion - f function
     def f(self):
         return self.h() + self.g()
     
-    # heuristic fucntion - h function
+    # heuristic function - h function
     def h(self):
         if self.heuristic == None:
-            if self.isGoalNode():
-                self.heuristic = 0
-                return 0
-            elif self.state == []:
-                # empty state has no heuristic value
-                # this ensures we have a node the represents [i] for all i in num_cities
-                self.heuristic = 0
-                return 0   
-            else:
-                # compute the heuristic if it has not been computed before 
-                unvisited = copy.copy(self.unvisited)
-                        
-                j = self.state[-1]
-
-                G = 0
-                # value of the greedy completion / nearest neighbour completion (from the current end-city)
-                while unvisited != []:
-                    k = j # k is the last visited city
-                    Z = distance_matrix[j][unvisited[0]]
-                    j = unvisited[0]
-                    for i in range(1, len(unvisited)):
-                        if distance_matrix[k][unvisited[i]] < Z:
-                            Z = distance_matrix[k][unvisited[i]]
-                            j = unvisited[i]
-                    # j is the nearest neighbour to k
-                    # j has been visited and is now the last visited city
-                    unvisited.remove(j)
-                    # sum the value
-                    G += Z
-
-                # save the heuristic value for later and return it 
-                G += distance_matrix[j][self.state[0]]    
-                self.heuristic = G
-                return G
+            edge_stack = copy.copy(self.valid_edges) # list of valid edges to try - already sorted
+            edges = copy.copy(self.state) # the current list of edges for this node
+            degrees = copy.copy(self.node_degrees) # the degrees of the cities for this node
+            G = 0
+            # value of the greedy edge selection / greedy completion (to create a valid tour)
+            while len(edges) != num_cities:
+                new_edge = edge_stack.pop(0)
+                if valid_edge_insertion(edges, degrees, new_edge):
+                    # if the edge is a valid insertion - select it
+                    degrees[new_edge[0]] += 1
+                    degrees[new_edge[1]] += 1
+                else:
+                    continue
+                # append new edge if its insertion does not violate any constraints
+                edges.append(new_edge)
+                # sum the value
+                G += new_edge[2]
+            # save the heuristic value for later and return it
+            self.heuristic = G
+            return G
         else:
             # return the heuristic value if it has been computed already
             return self.heuristic
         
-    # path cost - g function
+    # g function
     def g(self):
-        return self.path_cost
+        return self.cost
+
+    def complete(self):
+        # this function greedily completes the node state - through greedy edge selection
+        while len(self.state) != num_cities:
+            new_edge = self.valid_edges.pop(0) # the list of valid edges is already sorted
+            if valid_edge_insertion(self.state, self.node_degrees, new_edge):
+                # if the edge is a valid insertion - select it
+                self.node_degrees[new_edge[0]] += 1
+                self.node_degrees[new_edge[1]] += 1
+            else:
+                continue
+            # append new edge if its insertion does not violate any constraints
+            self.state.append(new_edge)
+            # sum the cost
+            self.cost += new_edge[2]
 
     def isGoalNode(self):
         return len(self.state) == num_cities
+
+    def toList(self):
+        # this function return a list of cities / tour represented by the list of selected edges
+        lst = []
+        # start at the first edge
+        nodeX = (self.state[0])[0]
+        edges = copy.copy(self.state)
+        # append the first two cities
+        lst.append(nodeX)
+        # node Y is our current node
+        while True:
+            # traverse along the edges
+            next_edge = None
+            for edge in edges:
+                if edge[0] == nodeX:
+                    # if node X is in some edge
+                    # traverse that edge
+                    next_edge = edge
+                    nodeX = edge[1]
+                    lst.append(nodeX)
+                    break
+                if edge[1] == nodeX:
+                    # if node X is in some edge
+                    # traverse that edge
+                    next_edge = edge
+                    nodeX = edge[0]
+                    lst.append(nodeX)
+                    break
+            if next_edge == None:
+                # if there are no more edges then stop traversing
+                break
+            # remove the used edge
+            edges.remove(next_edge)
+        return lst[:-1]
+            
+def valid_edge_insertion(state, node_degrees, edge):
+    # this function checks if adding some given edge to some given state is a valid move
+    edges = copy.copy(state)
+    N = len(state) + 1
+    # if the given edge has already been selected then this is not a valid move
+    if edge in edges:
+        return False
+    
+    # check degrees violation
+    # if the degree of any of the cities exceeds 2 this not a valid move
+    if node_degrees[edge[0]] == 2:
+        return False
+    if node_degrees[edge[1]] == 2:
+        return False
+
+    # check for cycles
+    # if the insertion of this edge gives us a cycle this is not a valid move
+    # unless the cycle is a goal state
+    if node_degrees[edge[0]] == 0 or node_degrees[edge[1]] == 0:
+        return not N == num_cities
+                    
+    cycle = False # assume no cycles
+    
+    nodeX = edge[0]
+    nodeY = edge[1]
+    
+    while True:
+        # we check if there is an other way to get from nodeX to nodeY
+        # if there is this implies there is a cycle
+        # we traverse from nodeX along our selected edges
+        next_edge = None
+        for edge in edges:
+            if edge[0] == nodeX:
+                next_edge = edge
+                nodeX = edge[1]
+                break
+            if edge[1] == nodeX:
+                next_edge = edge
+                nodeX = edge[0]
+                break
+        if next_edge == None:
+            # if there are now more edges to traverse then we do not have a cycle
+            cycle = False
+            break
+        if nodeX == nodeY:
+            # if we find nodeY while traversing then we have a cycle
+            cycle = True
+            break
+        edges.remove(next_edge)
         
+    if N == num_cities:
+        # if we have a goal state we want to have a cycle
+        return cycle
+    else:
+        # otherwise we don't want to have a cycle
+        return not cycle
+
+def get_valid_edges(node):
+    # this function take a node state and returns its list of valid edges
+    # it tries every edge in its valid edges list 
+    valid_edges = []
+    for edge in node.valid_edges:
+        if valid_edge_insertion(node.state, node.node_degrees, edge):
+            valid_edges.append(edge)
+    return valid_edges
+    
 class PriorityQueue(object):
     # priority queue class used as the fringe
     # uses heapq for better performance
@@ -297,18 +418,17 @@ class PriorityQueue(object):
 
     def push(self, obj):
         heapq.heappush(self.Q, obj)
-    
+            
     def pop(self):
         if (not self.isEmpty()):
             return heapq.heappop(self.Q)
         else:
             return None
 
-
 def AStarSearch():
     # init the start node
-    # (state = list of visited nodes, path_cost = cost of path, unvisited = list of unvisited nodes)
-    startNode = Node([],0, list(range(0,num_cities)))
+    # (state = list of visited nodes, cost = cost of selected edges, node_degrees = the degrees of the cities, valid_edges = list of sorted valid edges)
+    startNode = Node([],0, [0]*num_cities, sorted_edges)
     # init the fringe priority queue
     fringe = PriorityQueue()
     # is the start node a goal node? - not likely
@@ -325,46 +445,39 @@ def AStarSearch():
                 # if it is a goal node return - it must be minimal among the fringe
                 # A* search says we terminate if our node is a goal node and minimal among all other nodes on the fringe
                 return node
-            # create a list of unvisited nodes for this node
-            unvisited = copy.copy(node.unvisited)
-            # iterate through the unvisisted cities creating all possible child nodes
-            for i in unvisited:
-                # get the cost of traversing to node i from our last node
-                weight = 0
-                try:
-                    weight = distance_matrix[node.state[-1]][i]
-                except IndexError:
-                    # we set the weight to 0 if we have the empty state []
-                    # adding some arbitrary city to the empty state has no cost
-                    weight = 0
-
-                # ensure weight is atleast zero - zero weights can't exist in the problem definition
-                # if the weight is zero this could be because we have the empty state [] - allow this case
-                if weight > 0 or node.state == []:
+            if (time.time() - start_time) > 90:
+                # if the search has been running longer than 90 seconds we enforce early termination
+                # greedily complete the current node and return it
+                node.complete()
+                return node
+            # get the list of valid edge selections for this node
+            valid_edges = get_valid_edges(node)
+            # iterate through the valid edges create all possible child nodes
+            for edge in valid_edges:
+                # get the cost of selecting this edge
+                weight = edge[2]
+                # ensure weight is atleast zero - negative weights can't exist in the problem definition
+                if weight >= 0:
                     newState = copy.copy(node.state)
-                    newState.append(i)
-                    newUnvisited = copy.copy(unvisited)
-                    newUnvisited.remove(i)
+                    newDegrees = copy.copy(node.node_degrees)
+                    newState.append(edge)
+                    newDegrees[edge[0]] += 1
+                    newDegrees[edge[1]] += 1
                     # init the new child node
-                    child = Node(newState, node.path_cost + weight, newUnvisited)
-                    # if the child node is a goal node make sure to update the path cost accordingly
-                    if child.isGoalNode():
-                        child.path_cost += distance_matrix[node.state[0]][i]
-                    # push the child node to the fringe
+                    child = Node(newState, node.cost + weight, newDegrees, valid_edges)
                     fringe.push(child)
-
+                    
     # if no goal node is found we have exhausted the fringe and return None
     return None
                 
 solution = AStarSearch()
 # write the solution to the appropriate variables
 if solution is not None:
-    tour = solution.state
-    tour_length = solution.path_cost
+    tour = solution.toList()
+    tour_length = solution.cost
 else:
     tour = ''
     tour_length = -1
-
 
 #######################################################################################################
 ############ the code for your algorithm should now be complete and you should have        ############
@@ -388,7 +501,7 @@ if flag == "good":
     print("Great! Your tour-length of " + str(tour_length) + " from your " + codes_and_names[alg_code] + " is valid!")
 else:
     print("***** ERROR: Your claimed tour-length of " + str(tour_length) + "is different from the true tour length of " + str(check_tour_length) + ".")
-
+print(time.time()-start_time)
 #######################################################################################################
 ############ start of code to write a valid tour to a text (.txt) file of the correct      ############
 ############ format; if your tour is not valid then you get an error message on the        ############

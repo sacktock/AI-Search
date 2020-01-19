@@ -1,0 +1,6 @@
+NAME = AISearchfile005,
+SIZE = 5,
+1,1,1,1,
+1,1,1,
+1,2,
+1

@@ -1,0 +1,5 @@
+USER = clvp22 (Alex Goodall)
+ALGORITHM = AS, FILENAME = AISearchfile058
+NUMBER OF CITIES = 58, TOUR LENGTH = 25727
+3,16,45,54,19,18,42,0,37,6,28,11,1,36,17,8,40,49,2,57,21,43,48,47,23,13,53,55,34,10,50,31,32,56,30,9,22,51,4,38,25,14,35,12,24,33,20,15,52,41,5,27,29,46,39,7,26,44
+NOTE = For this AS algorithm the node states represent lists of selected edges, the heuristic function is the greedy selection of edges so that a valid tour is produced. This algorithm improves of the pervious one because the greedy selection of edges heuristic in general gets closer to the optimal solution that the nearest neighbour heuristic. However, this algorithm is more computationally expensive, so there is an enforced early termination after 90 seconds of searching the state space.

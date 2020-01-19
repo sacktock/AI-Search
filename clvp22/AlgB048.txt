@@ -1,0 +1,9 @@
+USER = clvp22 (Alex Goodall)
+ALGORITHM = GA, FILENAME = AISearchfile048
+NUMBER OF CITIES = 48, TOUR LENGTH = 12259
+40,17,28,10,33,42,11,14,15,37,41,3,6,16,7,22,23,35,45,12,30,19,43,27,18,34,8,29,5,0,2,32,44,39,25,47,26,9,46,31,38,1,21,20,13,36,24,4
+NOTE = This GA algorithm consists of indiviuals that represent tours (their encodings are lists of n cities).
+ The improved mating strategy is a less naive single point crossover method, the mutation process consists of randomised 4-Opt moves with probabalistic acceptance criterion.
+ A 3-Opt local search optimization algorithm is applied to the encodings of the children after the mating process.
+ This algorithm is signifigantly more computationally expensive than the basic version so the 3-Opt optimization is omitted for larger city sets.
+ The population is also generated from greedy / nearest neighbour tours, and is only evolved once, because experimentally population size is more important than number of generations for GAs.

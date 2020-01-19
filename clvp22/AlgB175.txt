@@ -1,0 +1,9 @@
+USER = clvp22 (Alex Goodall)
+ALGORITHM = GA, FILENAME = AISearchfile175
+NUMBER OF CITIES = 175, TOUR LENGTH = 22149
+32,75,71,108,52,174,166,82,145,138,46,99,83,17,113,173,122,128,151,168,104,85,112,63,51,11,118,56,61,14,8,13,19,59,100,130,125,127,94,134,81,70,88,58,135,157,23,123,172,41,78,68,26,90,93,67,3,54,34,49,30,40,62,97,60,109,28,107,87,116,170,84,89,110,72,155,18,167,137,140,115,16,154,114,12,10,153,43,53,156,91,143,79,55,6,9,147,144,106,103,25,21,48,101,5,160,142,29,119,1,158,77,146,133,149,121,38,126,139,159,66,86,44,152,120,165,73,136,80,2,131,162,24,22,171,164,124,39,141,117,92,27,132,4,45,7,111,76,65,35,98,102,129,31,20,36,69,15,47,169,150,37,105,163,0,95,161,64,74,57,148,42,50,33,96
+NOTE = This GA algorithm consists of indiviuals that represent tours (their encodings are lists of n cities).
+ The improved mating strategy is a less naive single point crossover method, the mutation process consists of randomised 4-Opt moves with probabalistic acceptance criterion.
+ A 3-Opt local search optimization algorithm is applied to the encodings of the children after the mating process.
+ This algorithm is signifigantly more computationally expensive than the basic version so the 3-Opt optimization is omitted for larger city sets.
+ The population is also generated from greedy / nearest neighbour tours, and is only evolved once, because experimentally population size is more important than number of generations for GAs.
